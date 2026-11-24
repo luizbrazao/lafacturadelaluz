@@ -1,0 +1,59 @@
+---
+import '@fontsource-variable/schibsted-grotesk';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  noindex?: boolean;
+}
+const { title, description, noindex = false } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const path = Astro.url.pathname;
+const nav = [
+  { href: '/', label: 'Precio hoy' },
+  { href: '/precio-luz-manana', label: 'Precio mañana' },
+];
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content="es_ES" />
+    <meta name="theme-color" content="#F6F7F4" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Saltar al contenido</a>
+    <header class="site-header">
+      <a class="brand" href="/">la factura de la luz</a>
+      <nav aria-label="Principal">
+        {nav.map((item) => (
+          <a href={item.href} aria-current={path === item.href ? 'page' : undefined}>{item.label}</a>
+        ))}
+      </nav>
+    </header>
+    <main id="main">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <p>
+        Esta web puede recibir una comisión si contratas una tarifa desde un enlace marcado como patrocinado. No cambia el
+        precio que pagas ni el orden de los resultados. <a href="/como-ganamos-dinero">Cómo ganamos dinero</a>.
+      </p>
+      <nav aria-label="Legal">
+        <a href="/aviso-legal">Aviso legal</a>
+        <a href="/privacidad">Privacidad</a>
+        <a href="/cookies">Cookies</a>
+      </nav>
+    </footer>
+  </body>
+</html>

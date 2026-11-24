@@ -1,0 +1,160 @@
+:root {
+  --paper: #f6f7f4;
+  --ink: #1c2228;
+  --slate: #5e6873;
+  --rule: #d9ddd6;
+  --bulb: #f5b700;
+  /* Escala de precio del día: de más barato (0) a más caro (4) */
+  --l0: #b9e4d6;
+  --l1: #7fc8b2;
+  --l2: #b7a3c9;
+  --l3: #85609f;
+  --l4: #4a2a63;
+  --measure: 66ch;
+  --wide: 68rem;
+  font-family: 'Schibsted Grotesk Variable', system-ui, sans-serif;
+  font-size: 106.25%; /* 17px */
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--bulb);
+  outline-offset: 2px;
+}
+
+.skip {
+  position: absolute;
+  left: -999px;
+}
+.skip:focus {
+  left: 1rem;
+  top: 1rem;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.5rem 0.75rem;
+}
+
+.site-header,
+main,
+.site-footer {
+  max-width: var(--wide);
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 2.5rem);
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-block: 1.25rem;
+}
+
+.brand {
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.site-header nav {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.site-header nav a {
+  text-decoration: none;
+  color: var(--slate);
+}
+
+.site-header nav a[aria-current='page'] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+main {
+  padding-bottom: 4rem;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+h2 {
+  font-size: 1.6rem;
+  margin-top: 3.5rem;
+  margin-bottom: 1rem;
+}
+
+p,
+li {
+  max-width: var(--measure);
+}
+
+.site-footer {
+  border-top: 1px solid var(--rule);
+  padding-block: 2rem 3rem;
+  color: var(--slate);
+  font-size: 0.9rem;
+}
+
+.site-footer nav {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+/* Páginas de texto (legales, explicaciones) */
+.prose {
+  max-width: var(--measure);
+}
+.prose h1 {
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  margin: 2rem 0 1.5rem;
+}
+.prose h2 {
+  font-size: 1.3rem;
+  margin-top: 2.25rem;
+  margin-bottom: 0.5rem;
+}
+.pending {
+  background: #fff3c4;
+  padding: 0 0.25em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

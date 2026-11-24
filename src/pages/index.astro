@@ -1,0 +1,32 @@
+---
+import Base from '../layouts/Base.astro';
+import DayView from '../components/DayView.astro';
+import { getDayPrices, madridDate, madridHour, fmtHour, fmtPrice } from '../lib/pvpc';
+
+export const prerender = false;
+
+const date = madridDate();
+const day = await getDayPrices(date);
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+
+const title = 'Precio de la luz hoy por horas (PVPC) | La factura de la luz';
+const description = day
+  ? `Precio de la luz hoy: la hora más barata es de ${fmtHour(day.min.hour)} a ${fmtHour(day.min.hour + 1)} (${fmtPrice(day.min.price)} €/kWh). Precio PVPC hora a hora y cuándo poner la lavadora.`
+  : 'Precio de la luz hoy hora a hora (PVPC), con la hora más barata y la más cara del día.';
+---
+<Base title={title} description={description}>
+  {day ? (
+    <DayView day={day} when="hoy" currentHour={madridHour()} />
+  ) : (
+    <section class="empty">
+      <h1>Precio de la luz hoy</h1>
+      <p>No hemos podido cargar los precios de Red Eléctrica ahora mismo. Recarga la página en unos minutos.</p>
+    </section>
+  )}
+  <p class="next"><a href="/precio-luz-manana">Ver el precio de la luz mañana</a></p>
+</Base>
+<style>
+  .empty { padding-top: 3rem; }
+  .empty h1 { font-size: 2.4rem; margin-bottom: 1rem; }
+  .next { margin-top: 3rem; font-weight: 600; }
+</style>

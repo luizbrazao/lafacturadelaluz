@@ -1,0 +1,237 @@
+---
+import type { DayPrices } from '../lib/pvpc';
+import { cheapestWindow, fmtHour, fmtLongDate, fmtPrice, level } from '../lib/pvpc';
+
+interface Props {
+  day: DayPrices;
+  when: 'hoy' | 'mañana';
+  currentHour?: number;
+}
+const { day, when, currentHour } = Astro.props;
+const top = Math.max(...day.hours.map((h) => h.price));
+const lavadora = cheapestWindow(day, 2);
+const lavavajillas = cheapestWindow(day, 3);
+const verb = when === 'hoy' ? 'es' : 'será';
+---
+<section class="hero">
+  <h1>Precio de la luz {when}, <span class="date">{fmtLongDate(day.date)}</span></h1>
+  <p class="answer">
+    La hora más barata {verb} de {fmtHour(day.min.hour)} a {fmtHour(day.min.hour + 1)}
+  </p>
+  <p class="facts">
+    <span><strong>{fmtPrice(day.min.price)} €/kWh</strong> en esa hora.</span>
+    <span>La más cara: {fmtHour(day.max.hour)} a {fmtHour(day.max.hour + 1)}, {fmtPrice(day.max.price)} €/kWh.</span>
+    <span>Media del día: {fmtPrice(day.avg)} €/kWh.</span>
+  </p>
+</section>
+
+<figure class="strip" aria-label={`Precio por hora ${when}`}>
+  <div class="bars" aria-hidden="true">
+    {day.hours.map((h) => (
+      <div class={`bar${h.hour === currentHour ? ' now' : ''}`} title={`${fmtHour(h.hour)} ${fmtPrice(h.price)} €/kWh`}>
+        <span class={`fill l${level(day, h.price)}`} style={`height:${Math.max(4, (h.price / top) * 100)}%`}></span>
+        <span class="tick">{String(h.hour).padStart(2, '0')}</span>
+      </div>
+    ))}
+  </div>
+  <figcaption>
+    Altura y color según el precio de cada hora, de más barato (verde agua) a más caro (morado).
+    {currentHour !== undefined && <span class="nowlabel"> El contorno amarillo marca la hora actual.</span>}
+  </figcaption>
+</figure>
+
+<section class="tips">
+  <h2>Cuándo poner los electrodomésticos</h2>
+  <dl>
+    <div>
+      <dt>Lavadora (unas 2 horas)</dt>
+      <dd>de {fmtHour(lavadora.start)} a {fmtHour(lavadora.end)}, media de {fmtPrice(lavadora.avg)} €/kWh</dd>
+    </div>
+    <div>
+      <dt>Lavavajillas o secadora (unas 3 horas)</dt>
+      <dd>de {fmtHour(lavavajillas.start)} a {fmtHour(lavavajillas.end)}, media de {fmtPrice(lavavajillas.avg)} €/kWh</dd>
+    </div>
+  </dl>
+</section>
+
+<section>
+  <h2>Precio hora a hora</h2>
+  <table class="hours">
+    <caption>Precio PVPC {when} por hora, en €/kWh sin impuestos</caption>
+    <thead>
+      <tr><th scope="col">Hora</th><th scope="col">€/kWh</th><th scope="col"><span class="sr">Comparado con el día</span></th></tr>
+    </thead>
+    <tbody>
+      {day.hours.map((h) => (
+        <tr class={h.hour === currentHour ? 'now' : undefined}>
+          <th scope="row">{fmtHour(h.hour)} a {fmtHour(h.hour + 1)}</th>
+          <td>{fmtPrice(h.price)}</td>
+          <td class="rel"><span class={`fill l${level(day, h.price)}`} style={`width:${(h.price / top) * 100}%`}></span></td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</section>
+
+<section class="note">
+  <h2>Qué precio es este</h2>
+  <p>
+    Es el término de energía del PVPC, la tarifa regulada 2.0TD para hogares de la península, ya con peajes y cargos y
+    sin impuestos. Lo publica Red Eléctrica cada día hacia las 20:15 para el día siguiente.
+  </p>
+  <p>
+    Solo te afecta hora a hora si tienes contratado el PVPC. En el mercado libre pagas el precio fijo o por tramos que
+    marque tu contrato, aunque este precio sirve de referencia para saber si tu oferta es buena.
+  </p>
+  <p class="source">Fuente: Red Eléctrica de España, API REData.</p>
+</section>
+
+<style>
+  .hero {
+    padding-top: clamp(1.5rem, 5vw, 3.5rem);
+  }
+  h1 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--slate);
+  }
+  .date {
+    color: var(--ink);
+  }
+  .answer {
+    font-size: clamp(2.4rem, 7.2vw, 5.4rem);
+    font-weight: 800;
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+    margin: 0.75rem 0 1.25rem;
+    max-width: 15ch;
+  }
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.5rem;
+    margin: 0;
+    max-width: none;
+    color: var(--slate);
+  }
+  .facts strong {
+    color: var(--ink);
+  }
+
+  .strip {
+    margin: 2.5rem 0 0;
+  }
+  .bars {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 3px;
+    height: clamp(9rem, 26vw, 15rem);
+    align-items: end;
+    border-bottom: 2px solid var(--ink);
+  }
+  .bar {
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+  }
+  .bar .fill {
+    display: block;
+    width: 100%;
+    border-radius: 2px 2px 0 0;
+  }
+  .bar.now .fill {
+    outline: 3px solid var(--bulb);
+    outline-offset: 1px;
+  }
+  .tick {
+    position: absolute;
+    bottom: -1.6rem;
+    width: 100%;
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--slate);
+  }
+  .bar:not(:nth-child(3n + 1)) .tick {
+    visibility: hidden;
+  }
+  figcaption {
+    margin-top: 2.2rem;
+    font-size: 0.85rem;
+    color: var(--slate);
+  }
+
+  .l0 { background: var(--l0); }
+  .l1 { background: var(--l1); }
+  .l2 { background: var(--l2); }
+  .l3 { background: var(--l3); }
+  .l4 { background: var(--l4); }
+
+  .tips dl {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1rem 2.5rem;
+    margin: 0;
+  }
+  .tips dt {
+    color: var(--slate);
+  }
+  .tips dd {
+    margin: 0.2rem 0 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .hours {
+    font-variant-numeric: tabular-nums;
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 40rem;
+  }
+  .hours caption {
+    text-align: left;
+    color: var(--slate);
+    font-size: 0.9rem;
+    padding-bottom: 0.5rem;
+  }
+  .hours th,
+  .hours td {
+    padding: 0.38rem 0.75rem 0.38rem 0;
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    font-weight: 400;
+  }
+  .hours thead th {
+    font-size: 0.85rem;
+    color: var(--slate);
+  }
+  .hours td:nth-child(2) {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .hours .rel {
+    width: 45%;
+  }
+  .hours .rel .fill {
+    display: block;
+    height: 0.65rem;
+    border-radius: 1px;
+  }
+  .hours tr.now th,
+  .hours tr.now td {
+    background: #fff6d1;
+  }
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .note .source {
+    color: var(--slate);
+    font-size: 0.9rem;
+  }
+</style>
