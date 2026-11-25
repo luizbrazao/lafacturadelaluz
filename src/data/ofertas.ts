@@ -164,7 +164,6 @@ export const OFERTAS: Oferta[] = [
     url: 'https://www.repsol.es/particulares/hogar/luz-y-gas/tarifas/tarifa-sin-horarios/',
     consultado: '2026-11-25',
   },
-  // Iberdrola: guardada pero oculta. niba (grupo Iberdrola) prohíbe en Awin compararse con Iberdrola.
   {
     id: 'iberdrola-online',
     compania: 'Iberdrola',
@@ -174,7 +173,6 @@ export const OFERTAS: Oferta[] = [
     condiciones: ['Precio estable 12 meses', 'Sin permanencia', 'Gestión 100 % online'],
     url: 'https://www.iberdrola.es/luz/tarifas/ofertas-luz',
     consultado: '2026-11-25',
-    oculta: true,
   },
   {
     id: 'iberdrola-online-3p',
@@ -185,7 +183,6 @@ export const OFERTAS: Oferta[] = [
     condiciones: ['Precio estable 12 meses', 'Sin permanencia'],
     url: 'https://www.iberdrola.es/luz/tarifas/ofertas-luz',
     consultado: '2026-11-25',
-    oculta: true,
   },
 ];
 
