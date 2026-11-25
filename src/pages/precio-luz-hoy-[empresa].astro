@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import DayView from '../components/DayView.astro';
 import { EMPRESAS } from '../data/empresas';
+import { salida } from '../lib/salida';
 import { OFERTAS, PVPC_POTENCIA_DIA } from '../data/ofertas';
 import { costeAnual, eur, type Consumo, type Potencia } from '../lib/calculo';
 import { getDayPrices, getPvpcPeriodAverages, madridDate, madridHour, fmtHour, fmtPrice } from '../lib/pvpc';
@@ -67,7 +68,7 @@ const description = day
     <ul>
       {propias.map((o) => (
         <li>
-          <a href={o.url} rel="noopener" target="_blank">{o.nombre}</a>: {precioTexto(o.energia)}.
+          <a href={salida(o, `/precio-luz-hoy-${empresa.slug}`).href} rel={salida(o, `/precio-luz-hoy-${empresa.slug}`).rel} target="_blank">{o.nombre}</a>{o.afiliado && <span class="tag">Patrocinado</span>}: {precioTexto(o.energia)}.
           {o.condiciones.length > 0 && <span class="muted"> {o.condiciones.join('. ')}.</span>}
         </li>
       ))}
@@ -169,6 +170,13 @@ const description = day
   }
   h2 + h3 {
     margin-top: 1rem;
+  }
+  .tag {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid var(--slate);
+    border-radius: 3px;
   }
   tr.best th,
   tr.best td {

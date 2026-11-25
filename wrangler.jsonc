@@ -7,5 +7,6 @@
     "directory": "./dist",
     "binding": "ASSETS"
   },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  "analytics_engine_datasets": [{ "binding": "CLICKS", "dataset": "lafactura_clicks" }]
 }

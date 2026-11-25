@@ -3,6 +3,7 @@ import Base from '../layouts/Base.astro';
 import { OFERTAS } from '../data/ofertas';
 import { EMPRESAS } from '../data/empresas';
 import { MARCAS } from '../data/marcas';
+import { salida } from '../lib/salida';
 import { eur } from '../lib/calculo';
 import { getPvpcPeriodAverages } from '../lib/pvpc';
 import { PERFILES, rankingCompanias, enlaceComparador } from '../lib/ranking';
@@ -57,7 +58,7 @@ const description = `La compañía de luz más barata en ${mes} para un hogar t�
                 <br />
                 <span class="muted">
                   {f.oferta ? (
-                    <a href={f.oferta.afiliado?.url ?? f.oferta.url} rel={f.oferta.afiliado ? 'sponsored noopener' : 'noopener'} target="_blank">{f.nombre}</a>
+                    <a href={salida(f.oferta, '/compania-luz-mas-barata').href} rel={salida(f.oferta, '/compania-luz-mas-barata').rel} target="_blank">{f.nombre}</a>
                   ) : (
                     'precio medio de los últimos 30 días'
                   )}

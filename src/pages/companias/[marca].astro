@@ -5,6 +5,7 @@ import { OFERTAS } from '../../data/ofertas';
 import { costeAnual, eur } from '../../lib/calculo';
 import { getPvpcPeriodAverages, fmtPrice } from '../../lib/pvpc';
 import { PERFILES, rankingCompanias, enlaceComparador } from '../../lib/ranking';
+import { salida as salidaBase } from '../../lib/salida';
 
 export const prerender = false;
 
@@ -46,10 +47,7 @@ const veredicto =
 
 const title = `${marca.compania}: tarifas de luz, precios y opiniones (${mes}) | La factura de la luz`;
 const description = `Análisis de ${marca.compania}: precios de sus tarifas de luz, cuánto cuesta al año con impuestos, en qué puesto queda frente a otras compañías y qué dicen sus clientes (${nota}/5 en Trustpilot).`;
-const salida = (o: (typeof ofertas)[number]) => ({
-  href: o.afiliado?.url ?? o.url,
-  rel: o.afiliado ? 'sponsored noopener' : 'noopener',
-});
+const salida = (o: (typeof ofertas)[number]) => salidaBase(o, `/companias/${marca.slug}`);
 ---
 <Base title={title} description={description}>
   <article class="prose">

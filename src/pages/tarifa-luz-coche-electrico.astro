@@ -3,6 +3,7 @@ import Base from '../layouts/Base.astro';
 import { OFERTAS, FISCALIDAD, PVPC_POTENCIA_DIA } from '../data/ofertas';
 import { costeAnual, eur, type Consumo, type Potencia } from '../lib/calculo';
 import { getPvpcPeriodAverages, fmtLongDate } from '../lib/pvpc';
+import { salida } from '../lib/salida';
 
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
@@ -21,7 +22,8 @@ const filas = OFERTAS.filter((o) => !o.oculta && (!o.maxKwhAno || kwhTotal < o.m
   compania: o.compania,
   tramos: !('unico' in o.energia),
   total: costeAnual(o.energia, o.potencia, o.cuotaMensual ?? 0, potencia, consumo),
-  url: o.url,
+  url: salida(o, '/tarifa-luz-coche-electrico').href,
+  rel: salida(o, '/tarifa-luz-coche-electrico').rel,
 }));
 if (pvpc) {
   filas.push({
@@ -30,6 +32,7 @@ if (pvpc) {
     tramos: true,
     total: costeAnual({ punta: pvpc.punta, llano: pvpc.llano, valle: pvpc.valle }, PVPC_POTENCIA_DIA, 0, potencia, consumo),
     url: '',
+    rel: '',
   });
 }
 filas.sort((a, b) => a.total - b.total);
@@ -62,7 +65,7 @@ const revisado = fmtLongDate(FISCALIDAD.revisado).replace(/^[^,]+, /, '');
         {top.map((f, i) => (
           <tr>
             <td>{i + 1}</td>
-            <th scope="row">{f.url ? <a href={f.url} rel="noopener" target="_blank">{f.nombre}</a> : f.nombre}<br /><span class="muted">{f.compania}</span></th>
+            <th scope="row">{f.url ? <a href={f.url} rel={f.rel} target="_blank">{f.nombre}</a> : f.nombre}<br /><span class="muted">{f.compania}</span></th>
             <td>{eur(f.total)}</td>
             <td>{eur(f.total / 12)}</td>
           </tr>

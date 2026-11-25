@@ -114,7 +114,7 @@ const data = {
           compania: o.compania,
           total: coste(o.energia, o.potencia, o.cuotaMensual ?? 0, kw, c),
           condiciones: o.condiciones,
-          url: o.afiliado?.url ?? o.url,
+          url: `/ir/${o.id}?de=%2Fcomparador-tarifas-luz`,
           patrocinado: Boolean(o.afiliado),
         }));
       if (data.pvpc) {
@@ -148,7 +148,7 @@ const data = {
           if (r.url) {
             const a = el('a', undefined, 'Ver tarifa') as HTMLAnchorElement;
             a.href = r.url;
-            a.rel = r.patrocinado ? 'sponsored noopener' : 'noopener';
+            a.rel = r.patrocinado ? 'sponsored nofollow noopener' : 'nofollow noopener';
             a.target = '_blank';
             act.append(a);
             if (r.patrocinado) act.append(el('span', 'tag', 'Patrocinado'));
