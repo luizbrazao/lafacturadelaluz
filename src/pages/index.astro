@@ -9,7 +9,7 @@ const date = madridDate();
 const day = await getDayPrices(date);
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
-const title = 'Precio de la luz hoy por horas (PVPC) | La factura de la luz';
+const title = 'Precio de la luz hoy por horas y horas más baratas (PVPC) | La factura de la luz';
 const description = day
   ? `Precio de la luz hoy: la hora más barata es de ${fmtHour(day.min.hour)} a ${fmtHour(day.min.hour + 1)} (${fmtPrice(day.min.price)} €/kWh). Precio PVPC hora a hora y cuándo poner la lavadora.`
   : 'Precio de la luz hoy hora a hora (PVPC), con la hora más barata y la más cara del día.';
@@ -24,9 +24,21 @@ const description = day
     </section>
   )}
   <p class="next"><a href="/precio-luz-manana">Ver el precio de la luz mañana</a></p>
+  <nav class="cias" aria-label="Precio por compañía">
+    <h2>¿Eres cliente de una de estas compañías?</h2>
+    <ul>
+      <li><a href="/precio-luz-hoy-endesa">Precio de la luz hoy en Endesa y Energía XXI</a></li>
+      <li><a href="/precio-luz-hoy-iberdrola">Precio de la luz hoy en Iberdrola y Curenergía</a></li>
+      <li><a href="/precio-luz-hoy-naturgy">Precio de la luz hoy en Naturgy y su Comercializadora Regulada</a></li>
+    </ul>
+  </nav>
 </Base>
 <style>
   .empty { padding-top: 3rem; }
   .empty h1 { font-size: 2.4rem; margin-bottom: 1rem; }
   .next { margin-top: 3rem; font-weight: 600; }
+  .cias { margin-top: 2.5rem; }
+  .cias h2 { font-size: 1.15rem; }
+  .cias ul { padding-left: 1.2rem; }
+  .cias li { padding: 0.15rem 0; }
 </style>

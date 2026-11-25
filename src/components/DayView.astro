@@ -6,15 +6,18 @@ interface Props {
   day: DayPrices;
   when: 'hoy' | 'mañana';
   currentHour?: number;
+  /** Texto tras "Precio de la luz hoy", p. ej. "en Endesa (Energía XXI)". */
+  sujeto?: string;
 }
-const { day, when, currentHour } = Astro.props;
+const { day, when, currentHour, sujeto } = Astro.props;
+const baratas = [...day.hours].sort((a, b) => a.price - b.price).slice(0, 6);
 const top = Math.max(...day.hours.map((h) => h.price));
 const lavadora = cheapestWindow(day, 2);
 const lavavajillas = cheapestWindow(day, 3);
 const verb = when === 'hoy' ? 'es' : 'será';
 ---
 <section class="hero">
-  <h1>Precio de la luz {when}, <span class="date">{fmtLongDate(day.date)}</span></h1>
+  <h1>Precio de la luz {when}{sujeto ? ` ${sujeto}` : ''}, <span class="date">{fmtLongDate(day.date)}</span></h1>
   <p class="answer">
     La hora más barata {verb} de {fmtHour(day.min.hour)} a {fmtHour(day.min.hour + 1)}
   </p>
@@ -24,6 +27,8 @@ const verb = when === 'hoy' ? 'es' : 'será';
     <span>Media del día: {fmtPrice(day.avg)} €/kWh.</span>
   </p>
 </section>
+
+<slot name="intro" />
 
 <figure class="strip" aria-label={`Precio por hora ${when}`}>
   <div class="bars" aria-hidden="true">
@@ -52,6 +57,15 @@ const verb = when === 'hoy' ? 'es' : 'será';
       <dd>de {fmtHour(lavavajillas.start)} a {fmtHour(lavavajillas.end)}, media de {fmtPrice(lavavajillas.avg)} €/kWh</dd>
     </div>
   </dl>
+</section>
+
+<section class="cheap">
+  <h2>Las horas más baratas de la luz {when}</h2>
+  <ol>
+    {baratas.map((h) => (
+      <li><strong>{fmtHour(h.hour)} a {fmtHour(h.hour + 1)}</strong> {fmtPrice(h.price)} €/kWh</li>
+    ))}
+  </ol>
 </section>
 
 <section>
@@ -182,6 +196,20 @@ const verb = when === 'hoy' ? 'es' : 'será';
     font-size: 1.35rem;
     font-weight: 700;
     letter-spacing: -0.01em;
+  }
+
+  .cheap ol {
+    margin: 0;
+    padding-left: 1.4rem;
+    columns: 2 14rem;
+    column-gap: 2.5rem;
+  }
+  .cheap li {
+    padding: 0.2rem 0;
+    break-inside: avoid;
+  }
+  .cheap li strong {
+    margin-right: 0.4rem;
   }
 
   .hours {

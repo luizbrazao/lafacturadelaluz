@@ -1,0 +1,177 @@
+---
+import Base from '../layouts/Base.astro';
+import DayView from '../components/DayView.astro';
+import { EMPRESAS } from '../data/empresas';
+import { OFERTAS, PVPC_POTENCIA_DIA } from '../data/ofertas';
+import { costeAnual, eur, type Consumo, type Potencia } from '../lib/calculo';
+import { getDayPrices, getPvpcPeriodAverages, madridDate, madridHour, fmtHour, fmtPrice } from '../lib/pvpc';
+
+export const prerender = false;
+
+const empresa = EMPRESAS.find((e) => e.slug === Astro.params.empresa);
+if (!empresa) return new Response(null, { status: 404 });
+
+const day = await getDayPrices(madridDate());
+const pvpc = await getPvpcPeriodAverages();
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+
+// Hogar típico: 3.000 kWh al año (25 % punta, 26 % llano, 49 % valle) y 3,45 kW.
+const consumo: Consumo = { punta: 750, llano: 780, valle: 1470 };
+const potencia: Potencia = { p1: 3.45, p2: 3.45 };
+const kwhTotal = consumo.punta + consumo.llano + consumo.valle;
+const enlace = `/comparador-tarifas-luz?kw1=${potencia.p1}&kw2=${potencia.p2}&punta=${consumo.punta}&llano=${consumo.llano}&valle=${consumo.valle}`;
+
+const costePvpc = pvpc
+  ? costeAnual({ punta: pvpc.punta, llano: pvpc.llano, valle: pvpc.valle }, PVPC_POTENCIA_DIA, 0, potencia, consumo)
+  : null;
+
+const visibles = OFERTAS.filter((o) => !o.oculta && (!o.maxKwhAno || kwhTotal < o.maxKwhAno));
+const conCoste = visibles.map((o) => ({ ...o, total: costeAnual(o.energia, o.potencia, o.cuotaMensual ?? 0, potencia, consumo) }));
+const propias = empresa.ofertas.map((id) => conCoste.find((o) => o.id === id)).filter((o) => o !== undefined);
+const mejor = [...conCoste].sort((a, b) => a.total - b.total)[0];
+
+const precioTexto = (e: (typeof OFERTAS)[number]['energia']) =>
+  'unico' in e ? `${fmtPrice(e.unico)} €/kWh a cualquier hora` : `${fmtPrice(e.punta)} punta, ${fmtPrice(e.llano)} llano y ${fmtPrice(e.valle)} valle (€/kWh)`;
+
+const cor = empresa.cor;
+const otras = EMPRESAS.filter((e) => e.slug !== empresa.slug);
+const title = `Precio de la luz hoy ${empresa.nombre} (${cor.nombre}) por horas | La factura de la luz`;
+const description = day
+  ? `Precio de la luz hoy para clientes de ${empresa.nombre}: si tienes el PVPC con ${cor.nombre}, la hora más barata es de ${fmtHour(day.min.hour)} a ${fmtHour(day.min.hour + 1)} (${fmtPrice(day.min.price)} €/kWh). Si estás en el mercado libre, tu precio es fijo: te explicamos cuál es.`
+  : `Precio de la luz hoy para clientes de ${empresa.nombre} y ${cor.nombre}: qué precio pagas según tengas el PVPC o una tarifa del mercado libre.`;
+---
+<Base title={title} description={description}>
+  {day ? (
+    <DayView day={day} when="hoy" currentHour={madridHour()} sujeto={`en ${empresa.nombre} (${cor.nombre})`}>
+      <aside slot="intro" class="aviso">
+        <p>
+          <strong>Este precio solo es el tuyo si tienes el PVPC</strong>, la tarifa regulada que en el grupo {empresa.nombre}{' '}
+          vende {cor.nombre}. Si tu contrato es con {empresa.nombre} en el mercado libre, pagas un precio fijo que no
+          cambia cada hora. <a href="#mercado-libre">Mira abajo cuál es</a>.
+        </p>
+      </aside>
+    </DayView>
+  ) : (
+    <section class="empty">
+      <h1>Precio de la luz hoy en {empresa.nombre} ({cor.nombre})</h1>
+      <p>No hemos podido cargar los precios de Red Eléctrica ahora mismo. Recarga la página en unos minutos.</p>
+    </section>
+  )}
+
+  <article class="prose">
+    <h2 id="mercado-libre">Si tienes una tarifa de {empresa.nombre} en el mercado libre</h2>
+    <p>
+      Tu precio no sigue la tabla de arriba. Es el que pone tu contrato, el mismo todo el año o distinto por tramos. Estas
+      son las tarifas que {empresa.nombre} vende hoy en su web, sin impuestos:
+    </p>
+    <ul>
+      {propias.map((o) => (
+        <li>
+          <a href={o.url} rel="noopener" target="_blank">{o.nombre}</a>: {precioTexto(o.energia)}.
+          {o.condiciones.length > 0 && <span class="muted"> {o.condiciones.join('. ')}.</span>}
+        </li>
+      ))}
+    </ul>
+
+    <h2>¿Te sale más barato el PVPC o la tarifa de {empresa.nombre}?</h2>
+    <p>
+      Coste de un año, con impuestos, para un hogar típico: 3.000 kWh al año y 3,45 kW de potencia. El PVPC está
+      calculado con la media de los últimos 30 días, así que es una estimación: su precio cambia cada día.
+    </p>
+    <table>
+      <thead><tr><th scope="col">Tarifa</th><th scope="col">Al año</th><th scope="col">Al mes</th></tr></thead>
+      <tbody>
+        {propias.map((o) => (
+          <tr><th scope="row">{o.nombre}<br /><span class="muted">{empresa.nombre}, mercado libre{o.condiciones.some((c) => /descuento/i.test(c)) && ', precio del primer año'}</span></th><td>{eur(o.total)}</td><td>{eur(o.total / 12)}</td></tr>
+        ))}
+        {costePvpc !== null && (
+          <tr><th scope="row">PVPC<br /><span class="muted">{cor.nombre}, tarifa regulada</span></th><td>{eur(costePvpc)}</td><td>{eur(costePvpc / 12)}</td></tr>
+        )}
+        {mejor && mejor.compania !== empresa.nombre && (
+          <tr class="best"><th scope="row">{mejor.nombre}<br /><span class="muted">{mejor.compania}, la más barata del comparador</span></th><td>{eur(mejor.total)}</td><td>{eur(mejor.total / 12)}</td></tr>
+        )}
+      </tbody>
+    </table>
+    {mejor && mejor.compania === empresa.nombre && (
+      <p>Con este consumo, la tarifa más barata de todas las que comparamos es precisamente {mejor.nombre}, de {empresa.nombre}.</p>
+    )}
+    <p>
+      Tu caso puede ser distinto: depende de cuánto gastas y a qué horas.{' '}
+      <a href={enlace}>Haz la cuenta con tus datos en el comparador</a>, que incluye el PVPC y tarifas de otras compañías.
+    </p>
+
+    <h2>Cómo saber si tienes el PVPC o el mercado libre</h2>
+    <p>Mira la primera página de tu factura:</p>
+    <ul>
+      <li>
+        Si la emite <strong>{cor.nombre}</strong>{cor.antes && <> (antes {cor.antes})</>}, estás en el mercado regulado y
+        pagas el PVPC. El precio de esta página es el tuyo.
+      </li>
+      <li>
+        Si la emite <strong>{empresa.nombre}</strong>, estás en el mercado libre. En el apartado de datos del contrato
+        verás el nombre de tu tarifa.
+      </li>
+    </ul>
+    <p>
+      {cor.nombre} y {empresa.nombre} son empresas distintas del mismo grupo, y la ley exige que el cliente pueda
+      distinguirlas. Por eso tienen webs, teléfonos y facturas diferentes.
+    </p>
+
+    <h2>Preguntas frecuentes</h2>
+    <h3>¿El PVPC de {cor.nombre} es más barato que el de otra comercializadora?</h3>
+    <p>
+      No. El PVPC lo fija el Gobierno y el precio de la energía es el mismo en todas las comercializadoras de referencia.
+      Cambiar de una a otra no te ahorra nada en el precio.
+    </p>
+    <h3>¿Dónde se contrata el PVPC de {empresa.nombre}?</h3>
+    <p>
+      Con {cor.razon}, en su web <a href={cor.web} rel="noopener" target="_blank">{cor.web.replace('https://www.', '')}</a>.
+      Para el PVPC necesitas una potencia de 10 kW o menos.
+    </p>
+    <h3>¿Puedo pedir el bono social con una tarifa de {empresa.nombre}?</h3>
+    <p>
+      Solo con el PVPC. El bono social se pide a una comercializadora de referencia como {cor.nombre}. Lo explicamos en
+      la <a href="/bono-social-luz">guía del bono social</a>.
+    </p>
+
+    <h2>Precio de la luz hoy en otras compañías</h2>
+    <ul>
+      {otras.map((e) => (
+        <li><a href={`/precio-luz-hoy-${e.slug}`}>Precio de la luz hoy en {e.nombre} ({e.cor.nombre})</a></li>
+      ))}
+    </ul>
+
+    <p class="muted">
+      Precios de las tarifas consultados en la web de {empresa.nombre}. El PVPC sale de Red Eléctrica de España. No
+      tenemos relación con {cor.nombre}.
+    </p>
+  </article>
+</Base>
+<style>
+  .aviso {
+    margin-top: 1.5rem;
+    padding: 0.9rem 1.1rem;
+    border-left: 4px solid var(--bulb);
+    background: #fff;
+    max-width: 46rem;
+  }
+  .aviso p {
+    margin: 0;
+  }
+  .empty {
+    padding-top: 3rem;
+  }
+  article {
+    margin-top: 3.5rem;
+  }
+  .muted {
+    color: var(--slate);
+  }
+  h2 + h3 {
+    margin-top: 1rem;
+  }
+  tr.best th,
+  tr.best td {
+    background: #eef7f3;
+  }
+</style>
