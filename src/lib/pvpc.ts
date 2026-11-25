@@ -95,3 +95,54 @@ export function level(day: DayPrices, price: number): number {
   const span = day.max.price - day.min.price || 1;
   return Math.min(4, Math.floor(((price - day.min.price) / span) * 5));
 }
+
+// ---------------------------------------------------------------------------
+// Media del PVPC por periodo (punta, llano, valle) en los últimos 30 días.
+
+export interface PeriodAverages {
+  punta: number;
+  llano: number;
+  valle: number;
+  desde: string;
+  hasta: string;
+}
+
+// Festivos nacionales de fecha fija: todo el día es valle. (Viernes Santo no se incluye.)
+const FESTIVOS = ['01-01', '01-06', '05-01', '08-15', '10-12', '11-01', '12-06', '12-08', '12-25'];
+
+/** Periodo 2.0TD de una hora peninsular. */
+export function periodo(date: string, hour: number): 'punta' | 'llano' | 'valle' {
+  const wd = new Date(`${date}T12:00:00Z`).getUTCDay();
+  if (wd === 0 || wd === 6 || FESTIVOS.includes(date.slice(5))) return 'valle';
+  if ((hour >= 10 && hour < 14) || (hour >= 18 && hour < 22)) return 'punta';
+  if ((hour >= 8 && hour < 10) || (hour >= 14 && hour < 18) || hour >= 22) return 'llano';
+  return 'valle';
+}
+
+export async function getPvpcPeriodAverages(): Promise<PeriodAverages | null> {
+  const hasta = madridDate(-1);
+  const desde = madridDate(-30);
+  if (import.meta.env.DEV) {
+    // Medias reales calculadas el 25/11/2026 con datos del 26/10 al 24/11.
+    return { punta: 0.27592, llano: 0.20839, valle: 0.17958, desde: '2026-10-26', hasta: '2026-11-24' };
+  }
+  const url = `${API}?start_date=${desde}T00:00&end_date=${hasta}T23:59&time_trunc=hour`;
+  try {
+    const res = await fetch(url, { cf: { cacheTtl: 21_600, cacheEverything: true } } as RequestInit);
+    if (!res.ok) return null;
+    const json: any = await res.json();
+    const raw: any[] | undefined = json?.included?.find((s: any) => s.id === '1001')?.attributes?.values;
+    if (!raw || raw.length < 24 * 20) return null;
+    const acc = { punta: [0, 0], llano: [0, 0], valle: [0, 0] };
+    for (const v of raw) {
+      const dt = String(v.datetime);
+      const p = periodo(dt.slice(0, 10), Number(dt.slice(11, 13)));
+      acc[p][0] += Number(v.value);
+      acc[p][1] += 1;
+    }
+    const avg = (k: keyof typeof acc) => acc[k][0] / acc[k][1] / 1000;
+    return { punta: avg('punta'), llano: avg('llano'), valle: avg('valle'), desde, hasta };
+  } catch {
+    return null;
+  }
+}

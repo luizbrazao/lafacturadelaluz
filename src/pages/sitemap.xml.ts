@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-const pages = ['/', '/precio-luz-manana', '/como-ganamos-dinero', '/aviso-legal', '/privacidad', '/cookies'];
+const pages = ['/', '/precio-luz-manana', '/comparador-tarifas-luz', '/como-ganamos-dinero', '/aviso-legal', '/privacidad', '/cookies'];
 
 export const GET: APIRoute = ({ site }) => {
   const urls = pages.map((p) => `<url><loc>${new URL(p, site).href}</loc></url>`).join('');

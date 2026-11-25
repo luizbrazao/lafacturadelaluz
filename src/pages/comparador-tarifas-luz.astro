@@ -1,0 +1,326 @@
+---
+import Base from '../layouts/Base.astro';
+import { OFERTAS, FISCALIDAD, PVPC_POTENCIA_DIA } from '../data/ofertas';
+import { getPvpcPeriodAverages, fmtLongDate } from '../lib/pvpc';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'public, max-age=600');
+
+const pvpc = await getPvpcPeriodAverages();
+const revisado = fmtLongDate(FISCALIDAD.revisado).replace(/^[^,]+, /, '');
+const companias = new Set(OFERTAS.map((o) => o.compania)).size;
+
+const data = {
+  ofertas: OFERTAS,
+  fiscalidad: FISCALIDAD,
+  pvpc: pvpc && { energia: { punta: pvpc.punta, llano: pvpc.llano, valle: pvpc.valle }, potencia: PVPC_POTENCIA_DIA },
+};
+---
+<Base
+  title="Comparador de tarifas de luz con tu consumo real | La factura de la luz"
+  description="Calcula cuánto pagarías al año con cada tarifa de luz, impuestos incluidos, a partir de tu factura. Incluye el PVPC y ordena por precio, pague comisión la compañía o no."
+>
+  <section class="intro">
+    <h1>Comparador de tarifas de luz</h1>
+    <p class="lead">
+      Pon la potencia y el consumo de tu factura y te decimos cuánto pagarías en un año con cada tarifa, con impuestos.
+      La lista se ordena solo por precio.
+    </p>
+  </section>
+
+  <form class="inputs" id="form" onsubmit="return false">
+    <fieldset>
+      <legend>Potencia contratada</legend>
+      <label>
+        <span>kW</span>
+        <input name="kw" type="number" inputmode="decimal" min="1" max="15" step="0.05" value="3.45" required />
+      </label>
+    </fieldset>
+    <fieldset>
+      <legend>Consumo en un año, en kWh</legend>
+      <label><span>Punta (P1)</span><input name="punta" type="number" inputmode="numeric" min="0" step="1" value="750" /></label>
+      <label><span>Llano (P2)</span><input name="llano" type="number" inputmode="numeric" min="0" step="1" value="780" /></label>
+      <label><span>Valle (P3)</span><input name="valle" type="number" inputmode="numeric" min="0" step="1" value="1470" /></label>
+    </fieldset>
+    <p class="help">
+      Tu factura muestra el consumo de cada periodo como P1, P2 y P3. Si solo ves el de un mes, multiplícalo por 12. Los
+      valores de ejemplo son un hogar de 3.000 kWh al año con un reparto habitual (25 % punta, 26 % llano, 49 % valle).
+    </p>
+  </form>
+
+  <section aria-live="polite">
+    <h2 id="resumen">Resultado</h2>
+    <ol class="results" id="results"></ol>
+  </section>
+
+  <section class="notes">
+    <h2>Cómo calculamos</h2>
+    <ul>
+      <li>
+        Comparamos {OFERTAS.length} tarifas de {companias} compañías, con los precios publicados en sus webs el {revisado}.
+        Antes de contratar, comprueba el precio en la web de la compañía.
+      </li>
+      <li>
+        Sumamos energía y potencia de un año, el impuesto especial sobre la electricidad (5,11 %), el alquiler del
+        contador ({FISCALIDAD.alquilerContadorMes.toLocaleString('es-ES')} € al mes) y el IVA del 21 %. No incluimos la
+        financiación del bono social, que es una cantidad pequeña y parecida en todas las compañías.
+      </li>
+      <li>
+        El PVPC cambia cada hora. Lo estimamos con la media de cada periodo en los últimos 30 días{' '}
+        {pvpc && <>({fmtLongDate(pvpc.desde).replace(/^[^,]+, /, '')} a {fmtLongDate(pvpc.hasta).replace(/^[^,]+, /, '')})</>}, así que
+        en invierno o verano puede salir distinto.
+      </li>
+      <li>
+        Si alguna compañía nos paga una comisión, su enlace lleva la etiqueta «Patrocinado». Eso no cambia su posición.{' '}
+        <a href="/como-ganamos-dinero">Cómo ganamos dinero</a>.
+      </li>
+    </ul>
+  </section>
+
+  <script type="application/json" id="data" set:html={JSON.stringify(data)} />
+  <script>
+    type Precio = { unico: number } | { punta: number; llano: number; valle: number };
+    const data = JSON.parse(document.getElementById('data')!.textContent!);
+    const form = document.getElementById('form') as HTMLFormElement;
+    const list = document.getElementById('results')!;
+    const resumen = document.getElementById('resumen')!;
+    const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+
+    function coste(energia: Precio, potencia: { p1: number; p2: number }, cuotaMensual: number, kw: number, c: { punta: number; llano: number; valle: number }) {
+      const e = 'unico' in energia
+        ? (c.punta + c.llano + c.valle) * energia.unico
+        : c.punta * energia.punta + c.llano * energia.llano + c.valle * energia.valle;
+      const p = kw * (potencia.p1 + potencia.p2) * 365;
+      const base = e + p + cuotaMensual * 12;
+      const f = data.fiscalidad;
+      const iee = base * f.iee;
+      const contador = f.alquilerContadorMes * 12;
+      return (base + iee + contador) * (1 + f.iva);
+    }
+
+    function el(tag: string, cls?: string, text?: string) {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text !== undefined) n.textContent = text;
+      return n;
+    }
+
+    function render() {
+      const fd = new FormData(form);
+      const kw = Number(fd.get('kw')) || 0;
+      const c = { punta: Number(fd.get('punta')) || 0, llano: Number(fd.get('llano')) || 0, valle: Number(fd.get('valle')) || 0 };
+      const rows: { titulo: string; compania: string; total: number; condiciones: string[]; url?: string; patrocinado?: boolean; pvpc?: boolean }[] =
+        data.ofertas.map((o: any) => ({
+          titulo: o.nombre,
+          compania: o.compania,
+          total: coste(o.energia, o.potencia, o.cuotaMensual ?? 0, kw, c),
+          condiciones: o.condiciones,
+          url: o.afiliado?.url ?? o.url,
+          patrocinado: Boolean(o.afiliado),
+        }));
+      if (data.pvpc) {
+        rows.push({
+          titulo: 'PVPC (tarifa regulada)',
+          compania: 'Comercializadora de referencia',
+          total: coste(data.pvpc.energia, data.pvpc.potencia, 0, kw, c),
+          condiciones: ['Precio que cambia cada hora', 'Estimación con los últimos 30 días', 'Sin permanencia'],
+          pvpc: true,
+        });
+      }
+      rows.sort((a, b) => a.total - b.total);
+      const best = rows[0].total;
+      const kwh = c.punta + c.llano + c.valle;
+      resumen.textContent = kwh > 0 && kw > 0
+        ? `Con ${kw.toLocaleString('es-ES')} kW y ${kwh.toLocaleString('es-ES')} kWh al año, la más barata sale por ${eur.format(best)} al año`
+        : 'Introduce tu potencia y tu consumo';
+
+      list.replaceChildren(
+        ...rows.map((r, i) => {
+          const li = el('li', r.pvpc ? 'row pvpc' : 'row');
+          const name = el('div', 'name');
+          name.append(el('strong', undefined, r.titulo), el('span', 'company', r.compania));
+          const price = el('div', 'price');
+          price.append(el('span', 'year', eur.format(r.total)), el('span', 'month', `${eur.format(r.total / 12)} al mes`));
+          const diff = el('div', 'diff', i === 0 ? 'La más barata' : `+${eur.format(r.total - best)} al año`);
+          const cond = el('ul', 'cond');
+          r.condiciones.forEach((t) => cond.append(el('li', undefined, t)));
+          const act = el('div', 'act');
+          if (r.url) {
+            const a = el('a', undefined, 'Ver tarifa') as HTMLAnchorElement;
+            a.href = r.url;
+            a.rel = r.patrocinado ? 'sponsored noopener' : 'noopener';
+            a.target = '_blank';
+            act.append(a);
+            if (r.patrocinado) act.append(el('span', 'tag', 'Patrocinado'));
+          } else {
+            act.append(el('span', 'tag', 'Se contrata con una comercializadora de referencia'));
+            act.style.whiteSpace = 'normal';
+          }
+          li.append(el('span', 'pos', String(i + 1)), name, price, diff, cond, act);
+          return li;
+        }),
+      );
+    }
+
+    form.addEventListener('input', render);
+    render();
+  </script>
+</Base>
+
+<style>
+  .intro {
+    padding-top: clamp(1.5rem, 5vw, 3rem);
+  }
+  h1 {
+    font-size: clamp(2.2rem, 6vw, 4rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    max-width: 13ch;
+  }
+  .lead {
+    font-size: 1.15rem;
+    margin: 1.25rem 0 0;
+  }
+
+  .inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem 3rem;
+    margin-top: 2.5rem;
+    padding: 1.5rem 0;
+    border-block: 2px solid var(--ink);
+  }
+  fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  legend {
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+    padding: 0;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+    color: var(--slate);
+  }
+  input {
+    font: inherit;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink);
+    width: 7.5rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid #b9bfb6;
+    border-radius: 4px;
+    background: #fff;
+  }
+  .help {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--slate);
+  }
+
+  #resumen {
+    font-size: clamp(1.4rem, 3.2vw, 2rem);
+    max-width: 30ch;
+  }
+
+  .results {
+    list-style: none;
+    margin: 1.5rem 0 0;
+    padding: 0;
+  }
+  .results :global(.row) {
+    display: grid;
+    grid-template-columns: 2rem minmax(10rem, 1.4fr) minmax(8rem, 1fr) minmax(7rem, 0.8fr) minmax(10rem, 1.4fr) auto;
+    gap: 0.5rem 1.25rem;
+    align-items: baseline;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--rule);
+    max-width: none;
+  }
+  .results :global(.row:first-child) {
+    border-top: 1px solid var(--rule);
+  }
+  .results :global(.row:first-child .year) {
+    color: #2f7d67;
+  }
+  .results :global(.pvpc) {
+    background: linear-gradient(90deg, #efe9f4, transparent 70%);
+  }
+  .results :global(.pos) {
+    font-weight: 800;
+    color: var(--slate);
+  }
+  .results :global(.name) {
+    display: flex;
+    flex-direction: column;
+  }
+  .results :global(.company),
+  .results :global(.month),
+  .results :global(.diff) {
+    font-size: 0.88rem;
+    color: var(--slate);
+  }
+  .results :global(.price) {
+    display: flex;
+    flex-direction: column;
+    font-variant-numeric: tabular-nums;
+  }
+  .results :global(.year) {
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .results :global(.cond) {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.85rem;
+    color: var(--slate);
+  }
+  .results :global(.act) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .results :global(.tag) {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--slate);
+  }
+
+  @media (max-width: 760px) {
+    .results :global(.row) {
+      grid-template-columns: 1.5rem 1fr auto;
+    }
+    .results :global(.diff),
+    .results :global(.cond) {
+      grid-column: 2 / -1;
+    }
+    .results :global(.act) {
+      grid-column: 2 / -1;
+    }
+    .results :global(.price) {
+      text-align: right;
+    }
+  }
+
+  .notes ul {
+    padding-left: 1.1rem;
+  }
+  .notes li {
+    margin-bottom: 0.6rem;
+  }
+</style>
