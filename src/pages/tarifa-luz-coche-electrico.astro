@@ -1,0 +1,122 @@
+---
+import Base from '../layouts/Base.astro';
+import { OFERTAS, FISCALIDAD, PVPC_POTENCIA_DIA } from '../data/ofertas';
+import { costeAnual, eur, type Consumo, type Potencia } from '../lib/calculo';
+import { getPvpcPeriodAverages, fmtLongDate } from '../lib/pvpc';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
+
+// Perfil de ejemplo: hogar de 2.500 kWh al año (25/26/49 %) + coche de 2.500 kWh al año
+// (unos 15.000 km a 17 kWh/100 km) cargado entero en valle.
+const casa = 2500;
+const coche = 2500;
+const consumo: Consumo = { punta: casa * 0.25, llano: casa * 0.26, valle: casa * 0.49 + coche };
+const potencia: Potencia = { p1: 4.6, p2: 6.9 };
+const kwhTotal = consumo.punta + consumo.llano + consumo.valle;
+
+const pvpc = await getPvpcPeriodAverages();
+const filas = OFERTAS.filter((o) => !o.oculta && (!o.maxKwhAno || kwhTotal < o.maxKwhAno)).map((o) => ({
+  nombre: o.nombre,
+  compania: o.compania,
+  tramos: !('unico' in o.energia),
+  total: costeAnual(o.energia, o.potencia, o.cuotaMensual ?? 0, potencia, consumo),
+  url: o.url,
+}));
+if (pvpc) {
+  filas.push({
+    nombre: 'PVPC (tarifa regulada)',
+    compania: 'Comercializadora de referencia',
+    tramos: true,
+    total: costeAnual({ punta: pvpc.punta, llano: pvpc.llano, valle: pvpc.valle }, PVPC_POTENCIA_DIA, 0, potencia, consumo),
+    url: '',
+  });
+}
+filas.sort((a, b) => a.total - b.total);
+const top = filas.slice(0, 6);
+const mejor24h = filas.find((f) => !f.tramos);
+const mejorTramos = filas.find((f) => f.tramos);
+const enlace = `/comparador-tarifas-luz?kw1=${potencia.p1}&kw2=${potencia.p2}&punta=${consumo.punta}&llano=${consumo.llano}&valle=${consumo.valle}`;
+const revisado = fmtLongDate(FISCALIDAD.revisado).replace(/^[^,]+, /, '');
+---
+<Base
+  title="Mejor tarifa de luz para coche eléctrico (comparativa actualizada) | La factura de la luz"
+  description="Qué tarifa de luz sale más barata si cargas el coche eléctrico en casa: comparativa con precios reales, cuánta potencia contratar de noche y cuándo cargar."
+>
+  <article class="prose">
+    <h1>Mejor tarifa de luz para coche eléctrico</h1>
+    <p class="lead">
+      Si cargas el coche en casa, casi todo tu consumo extra cae de noche o en fin de semana. Eso cambia qué tarifa te
+      conviene: las de tres tramos con el valle barato y poca cuota de potencia en valle ganan a las de precio único.
+    </p>
+
+    <h2>Comparativa con un caso típico</h2>
+    <p>
+      Hogar que gasta 2.500 kWh al año y un coche que recorre unos 15.000 km al año (otros 2.500 kWh), cargado siempre
+      en horas valle. Potencia de 4,6 kW en punta y 6,9 kW en valle para poder cargar de noche sin que salte el
+      interruptor. Precios con impuestos, para un año.
+    </p>
+    <table>
+      <thead><tr><th scope="col">#</th><th scope="col">Tarifa</th><th scope="col">Al año</th><th scope="col">Al mes</th></tr></thead>
+      <tbody>
+        {top.map((f, i) => (
+          <tr>
+            <td>{i + 1}</td>
+            <th scope="row">{f.url ? <a href={f.url} rel="noopener" target="_blank">{f.nombre}</a> : f.nombre}<br /><span class="muted">{f.compania}</span></th>
+            <td>{eur(f.total)}</td>
+            <td>{eur(f.total / 12)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {mejor24h && mejorTramos && (
+      <p>
+        En este caso, la mejor tarifa de tres tramos ({mejorTramos.nombre}) sale {eur(mejor24h.total - mejorTramos.total)}{' '}
+        al año más barata que la mejor de precio único ({mejor24h.nombre}).
+      </p>
+    )}
+    <p>
+      <a href={enlace}>Abre esta comparativa en el comparador</a> y cambia los números por los de tu factura y tu coche.
+    </p>
+
+    <h2>Qué mirar en una tarifa para cargar el coche</h2>
+    <ul>
+      <li>
+        <strong>El precio del kWh en valle.</strong> Es donde va casi toda la carga. El valle es de 0:00 a 8:00 entre semana
+        y todo el día los fines de semana y festivos nacionales.
+      </li>
+      <li>
+        <strong>El precio de la potencia en valle (P2).</strong> Para cargar a 7 kW necesitas subir la potencia de noche.
+        Algunas compañías cobran la potencia de valle mucho más barata que la de punta y otras cobran igual. Con varios kW
+        de más en valle, esa diferencia pesa.
+      </li>
+      <li>
+        <strong>Si te sirve contratar más potencia solo en valle.</strong> Desde 2021 se puede tener una potencia en punta
+        y otra mayor en valle. Así no pagas de más durante el día.
+      </li>
+    </ul>
+
+    <h2>Cuándo cargar</h2>
+    <p>
+      Con una tarifa de tramos, programa la carga a partir de las 0:00. Con el PVPC el precio cambia cada hora, así que
+      conviene mirar el <a href="/">precio de la luz de hoy</a> o el de <a href="/precio-luz-manana">mañana</a> y cargar
+      en las horas más baratas.
+    </p>
+
+    <h2>Lo que esta comparativa no incluye</h2>
+    <p>
+      Algunas compañías tienen planes específicos para coche eléctrico, con precios especiales en ciertas horas o
+      descuentos en puntos de carga. Todavía no están en la tabla: aquí comparamos las tarifas generales de nuestro
+      comparador, con precios publicados en sus webs el {revisado}. El PVPC es una estimación con la media de los
+      últimos 30 días. Antes de contratar, comprueba el precio en la web de la compañía.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .muted {
+    color: var(--slate);
+    font-size: 0.85rem;
+    font-weight: 400;
+  }
+</style>

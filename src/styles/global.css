@@ -158,3 +158,41 @@ li {
     transition: none !important;
   }
 }
+
+.prose .lead {
+  font-size: 1.15rem;
+}
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5rem 0 1rem;
+}
+.prose th,
+.prose td {
+  text-align: left;
+  padding: 0.45rem 0.75rem 0.45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.prose thead th {
+  font-size: 0.85rem;
+  color: var(--slate);
+  font-weight: 600;
+}
+.prose tbody th {
+  font-weight: 500;
+}
+.prose li {
+  margin-bottom: 0.5rem;
+}
+.prose .source {
+  color: var(--slate);
+  font-size: 0.88rem;
+  margin-top: 2.5rem;
+}
+.site-footer .guias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin-top: 1rem;
+}
