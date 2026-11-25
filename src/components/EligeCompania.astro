@@ -1,0 +1,63 @@
+---
+import { eur } from '../lib/calculo';
+import { getPvpcPeriodAverages } from '../lib/pvpc';
+import { PERFILES, rankingCompanias, enlaceComparador } from '../lib/ranking';
+import { MARCAS } from '../data/marcas';
+
+interface Props {
+  titulo: string;
+  intro: string;
+}
+const { titulo, intro } = Astro.props;
+const pvpc = await getPvpcPeriodAverages();
+const tipico = PERFILES.find((p) => p.id === 'tipico')!;
+const top = rankingCompanias(tipico, pvpc).slice(0, 3);
+const ficha = (c: string) => MARCAS.find((m) => m.compania === c);
+---
+<section class="elige">
+  <h2>{titulo}</h2>
+  <p>{intro}</p>
+  <ol>
+    {top.map((f) => {
+      const m = f.oferta ? ficha(f.compania) : undefined;
+      return (
+        <li>
+          <strong>{f.oferta ? f.compania : 'PVPC (tarifa regulada)'}</strong>
+          {f.oferta && <> con {f.nombre}</>}: {eur(f.total)} al año
+          {f.oferta?.afiliado && <span class="tag">Patrocinado</span>}
+          {m && <> <a href={`/companias/${m.slug}`}>ver ficha</a></>}
+        </li>
+      );
+    })}
+  </ol>
+  <p class="muted">Hogar típico de 3.000 kWh al año y 3,45 kW, con impuestos. El orden cambia según tu consumo.</p>
+  <p><a class="cta" href={enlaceComparador(tipico)}>Compara con tu consumo</a> <a href="/compania-luz-mas-barata">o mira el ranking completo</a>.</p>
+</section>
+<style>
+  .elige {
+    margin: 2.5rem 0;
+    padding: 1.25rem 1.4rem;
+    background: #fff;
+    border-left: 4px solid var(--bulb);
+  }
+  .elige h2 {
+    margin-top: 0;
+  }
+  .elige ol {
+    padding-left: 1.3rem;
+  }
+  .muted {
+    color: var(--slate);
+    font-size: 0.92rem;
+  }
+  .tag {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid var(--slate);
+    border-radius: 3px;
+  }
+  .cta {
+    font-weight: 700;
+  }
+</style>

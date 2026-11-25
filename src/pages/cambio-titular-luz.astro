@@ -1,0 +1,89 @@
+---
+import Base from '../layouts/Base.astro';
+import EligeCompania from '../components/EligeCompania.astro';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
+---
+<Base
+  title="Cambio de titular de la luz: gratis, papeles y plazos (2026) | La factura de la luz"
+  description="Cómo poner la luz a tu nombre al comprar o alquilar: es gratis, lo pide el nuevo titular, qué documentos necesitas, cuánto tarda y cómo aprovechar para pagar menos."
+>
+  <article class="prose">
+    <h1>Cambio de titular de la luz</h1>
+    <p class="lead">
+      Si te mudas a una casa que ya tiene luz, no hace falta darla de alta: basta con ponerla a tu nombre. Es gratis y lo
+      pides tú, el nuevo titular.
+    </p>
+
+    <h2>Lo esencial</h2>
+    <ul>
+      <li><strong>Coste:</strong> ninguno. La CNMC lo describe como un trámite sencillo, rápido y gratuito.</li>
+      <li><strong>Quién lo pide:</strong> siempre el nuevo titular, no el anterior.</li>
+      <li><strong>Plazo:</strong> según la CNMC, entre 1 y 20 días hábiles, porque la compañía espera al cierre del periodo de facturación.</li>
+      <li><strong>Deudas:</strong> las facturas de antes del cambio son del titular anterior. Tú respondes desde la fecha del cambio.</li>
+    </ul>
+
+    <h2>Dos formas de hacerlo</h2>
+    <table>
+      <thead><tr><th scope="col">Opción</th><th scope="col">Qué pasa</th><th scope="col">Cuándo conviene</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Subrogación</th><td>Cambia el titular y se queda la misma compañía y tarifa</td><td>Si la tarifa actual ya es buena</td></tr>
+        <tr><th scope="row">Contrato nuevo</th><td>Cambias el titular y eliges compañía y tarifa</td><td>Casi siempre: vas a firmar igualmente</td></tr>
+      </tbody>
+    </table>
+    <p>
+      En los dos casos firmas un contrato. Por eso es el mejor momento para revisar si la tarifa del anterior inquilino o
+      del dueño te sirve, o si hay otra más barata para tu consumo.
+    </p>
+
+    <EligeCompania
+      titulo="Aprovecha para elegir compañía"
+      intro="Cambiar de titular y de compañía a la vez no cuesta más. Las más baratas este mes para un hogar típico:"
+    />
+
+    <h2>Qué documentos necesitas</h2>
+    <ul>
+      <li>Tus datos: nombre, apellidos, DNI o NIE y teléfono.</li>
+      <li>Nombre, apellidos y DNI del titular anterior.</li>
+      <li>El código CUPS o la dirección completa. El CUPS está en cualquier factura de la casa.</li>
+      <li>La escritura o el contrato de alquiler, cuando te lo pidan.</li>
+      <li>Tu número de cuenta para domiciliar los recibos.</li>
+    </ul>
+    <p>
+      La guía de la CNMC no pide boletín eléctrico para cambiar solo el titular. Sí lo pueden pedir si a la vez subes la
+      potencia por encima de la que admite tu instalación.
+    </p>
+
+    <h2>Si eres inquilino</h2>
+    <p>
+      Con el reglamento de 2026, si la casa tiene el PVPC, el inquilino que vive en ella puede pedir que el contrato pase a
+      su nombre sin depender del titular anterior. Lleva el contrato de alquiler. Con tarifas del mercado libre, pregunta a
+      la compañía qué te pide.
+    </p>
+
+    <h2>Preguntas frecuentes</h2>
+    <h3>¿Me pueden cortar la luz por deudas del anterior titular?</h3>
+    <p>Las facturas anteriores al cambio son del titular anterior, no tuyas. Aun así, si sabes que hay recibos pendientes, pide el cambio cuanto antes y guarda la fecha.</p>
+    <h3>¿Tengo que cambiar la potencia?</h3>
+    <p>No es obligatorio. Pero si la potencia es más alta de lo que necesitas, bajarla cuesta 9,04 € y ahorras cada mes. <a href="/que-potencia-contratar">Calcula cuánta necesitas</a>.</p>
+    <h3>¿Y si el contador está de baja?</h3>
+    <p>Entonces no es un cambio de titular sino un alta. <a href="/dar-de-alta-la-luz">Mira cuánto cuesta dar de alta la luz</a>.</p>
+    <h3>¿Me cobran algo por irme de la compañía anterior?</h3>
+    <p>Si firmas un contrato nuevo, el contrato anterior era del otro titular, no tuyo. Si tú tenías permanencia en otra casa, desde 2026 la penalización solo cabe en tarifas de precio fijo, en el primer año y con un tope del 5 % de la energía que dejas de consumir.</p>
+
+    <p class="source">
+      Fuentes: CNMC, guía «Cómo modificar las condiciones del contrato»; Reglamento general de suministro (Real Decreto
+      88/2026) según OCU y Fieldfisher. Revisado el 25 de noviembre de 2026.
+    </p>
+  </article>
+</Base>
+<style>
+  .source {
+    color: var(--slate);
+    font-size: 0.88rem;
+  }
+  h2 + h3 {
+    margin-top: 1rem;
+  }
+</style>

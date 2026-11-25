@@ -1,0 +1,190 @@
+---
+import Base from '../layouts/Base.astro';
+import EligeCompania from '../components/EligeCompania.astro';
+import { ACOMETIDA, costeAlta } from '../data/acometida';
+import { FISCALIDAD } from '../data/ofertas';
+import { eur } from '../lib/calculo';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
+
+const iva = FISCALIDAD.iva;
+const f2 = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const ejemplos = [3.45, 4.6, 5.75].map((kw) => ({ kw, nueva: costeAlta(kw, 'nueva', iva), reactivar: costeAlta(kw, 'baja-menos-3', iva) }));
+---
+<Base
+  title="Dar de alta la luz: pasos, cuánto cuesta en 2026 y qué papeles piden | La factura de la luz"
+  description="Cómo dar de alta la luz en una vivienda: si necesitas un alta o solo un cambio de titular, cuánto cuesta (con calculadora), qué documentos piden y cómo elegir compañía."
+>
+  <article class="prose">
+    <h1>Dar de alta la luz</h1>
+    <p class="lead">
+      Antes de nada, mira si de verdad necesitas un alta. Muchas veces la casa ya tiene luz y lo que toca es un cambio de
+      titular, que es gratis.
+    </p>
+
+    <h2>¿Alta o cambio de titular?</h2>
+    <table>
+      <thead><tr><th scope="col">Tu caso</th><th scope="col">Qué trámite es</th><th scope="col">Coste</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">La casa tiene luz, a nombre del dueño o del inquilino anterior</th><td><a href="/cambio-titular-luz">Cambio de titular</a></td><td>Gratis</td></tr>
+        <tr><th scope="row">El contador se dio de baja hace menos de 3 años</th><td>Alta (reactivación)</td><td>Acceso y enganche</td></tr>
+        <tr><th scope="row">Se dio de baja hace más de 3 años</th><td>Alta</td><td>Extensión, acceso y enganche</td></tr>
+        <tr><th scope="row">Obra nueva, nunca tuvo luz</th><td>Alta nueva, con boletín</td><td>Extensión, acceso y enganche</td></tr>
+      </tbody>
+    </table>
+    <p>Si no sabes si el contador está de baja, pregúntalo a la distribuidora de tu zona con la dirección o el código CUPS.</p>
+
+    <h2>Cuánto cuesta dar de alta la luz</h2>
+    <p>
+      Son importes regulados que cobra la distribuidora. Son los mismos elijas la compañía que elijas, y te llegan en la
+      primera factura. Sin IVA:
+    </p>
+    <ul>
+      <li><strong>Derechos de acceso:</strong> {f2(ACOMETIDA.accesoKw)} € por kW. Siempre que das de alta o reactivas.</li>
+      <li><strong>Derechos de extensión:</strong> {f2(ACOMETIDA.extensionKw)} € por kW. En un alta nueva o si el suministro lleva más de {ACOMETIDA.vigenciaExtensionAnos} años de baja. En obra nueva suele pagarlos el promotor.</li>
+      <li><strong>Derechos de enganche:</strong> {f2(ACOMETIDA.enganche)} €, una sola vez.</li>
+      <li><strong>Derechos de verificación:</strong> solo si no aportas el boletín eléctrico.</li>
+    </ul>
+    <p>
+      <strong>Ya no hay fianza.</strong> Desde el 12 de junio de 2026 las distribuidoras no pueden pedir depósito de
+      garantía al dar de alta. Algunas webs todavía lo mencionan, pero es una regla antigua.
+    </p>
+
+    <form class="calc" id="calc" data-acceso={ACOMETIDA.accesoKw} data-extension={ACOMETIDA.extensionKw} data-enganche={ACOMETIDA.enganche} data-iva={iva}>
+      <h3>Calcula tu alta</h3>
+      <label><span>Potencia que vas a contratar (kW)</span><input name="kw" type="number" inputmode="decimal" min="1" max="15" step="0.05" value="3.45" /></label>
+      <label>
+        <span>Situación</span>
+        <select name="sit">
+          <option value="nueva">Alta nueva o baja de más de 3 años</option>
+          <option value="baja-menos-3">Baja de menos de 3 años</option>
+        </select>
+      </label>
+      <output name="res" aria-live="polite"></output>
+    </form>
+
+    <table>
+      <caption>Coste con IVA del 21 % según la potencia</caption>
+      <thead><tr><th scope="col">Potencia</th><th scope="col">Alta nueva</th><th scope="col">Reactivar (baja de menos de 3 años)</th></tr></thead>
+      <tbody>
+        {ejemplos.map((e) => (
+          <tr><th scope="row">{e.kw.toLocaleString('es-ES')} kW</th><td>{eur(e.nueva.total)}</td><td>{eur(e.reactivar.total)}</td></tr>
+        ))}
+      </tbody>
+    </table>
+    <p>
+      Contratar menos potencia abarata el alta y todas las facturas siguientes. <a href="/que-potencia-contratar">Cómo
+      saber cuánta necesitas</a>.
+    </p>
+
+    <h2>Qué documentos te piden</h2>
+    <ul>
+      <li>DNI o NIE del nuevo titular.</li>
+      <li>Dirección completa y, si existe, el código CUPS (sale en cualquier factura antigua).</li>
+      <li>Número de cuenta para domiciliar los recibos.</li>
+      <li>
+        Boletín eléctrico (Certificado de Instalación Eléctrica). Es obligatorio en un alta nueva. Si el tuyo tiene más de
+        20 años y además cambias algo del contrato, te pueden pedir revisarlo. Lo firma un instalador autorizado y su
+        precio es libre: la CNMC habla de unos 100 a 150 € de media.
+      </li>
+      <li>En algunos casos, la escritura o el contrato de alquiler.</li>
+    </ul>
+
+    <h2>Los pasos</h2>
+    <ol>
+      <li><strong>Elige compañía y tarifa.</strong> Puedes contratar con cualquier comercializadora, o el PVPC con una comercializadora de referencia.</li>
+      <li><strong>Pide el alta a esa compañía.</strong> Ella tramita la conexión con la distribuidora de tu zona.</li>
+      <li><strong>La distribuidora conecta el suministro</strong> y te cobran los derechos en la primera factura.</li>
+    </ol>
+    <p>
+      Desde 2026 la compañía tiene que darte, antes de firmar, un resumen con las condiciones principales y las posibles
+      penalizaciones. Léelo antes de aceptar.
+    </p>
+
+    <EligeCompania
+      titulo="Qué compañía elegir"
+      intro="Es el mejor momento para elegir bien: vas a firmar un contrato nuevo de todas formas. Las más baratas este mes para un hogar típico:"
+    />
+
+    <h2>Preguntas frecuentes</h2>
+    <h3>¿Se puede dar de alta la luz sin boletín?</h3>
+    <p>En una vivienda que nunca ha tenido luz, no: el boletín es obligatorio. En una reactivación depende de la distribuidora y de la antigüedad de la instalación.</p>
+    <h3>¿Quién paga el alta, el dueño o el inquilino?</h3>
+    <p>La paga quien firma el contrato, porque los derechos llegan en su primera factura. Si eres inquilino, puedes pactar otra cosa con el propietario.</p>
+    <h3>¿Cuánto tarda?</h3>
+    <p>Depende de la distribuidora y de si hay que hacer obras o revisar la instalación. Pregunta el plazo a la compañía al contratar.</p>
+
+    <p class="source">
+      Fuentes: CNMC, guía «Cómo modificar las condiciones del contrato» y guía del boletín eléctrico; Orden ITC/3519/2009;
+      OCU sobre el Reglamento general de suministro de 2026; Endesa, «Cuánto cuesta dar de alta la luz». Revisado el 25 de
+      noviembre de 2026.
+    </p>
+  </article>
+</Base>
+<style>
+  .calc {
+    display: grid;
+    gap: 0.75rem;
+    margin: 1.5rem 0;
+    padding: 1.1rem 1.25rem;
+    background: #fff;
+    border: 1px solid var(--rule);
+    max-width: 30rem;
+  }
+  .calc h3 {
+    margin: 0;
+  }
+  .calc label {
+    display: grid;
+    gap: 0.25rem;
+  }
+  .calc label span {
+    font-size: 0.9rem;
+    color: var(--slate);
+  }
+  .calc input,
+  .calc select {
+    font: inherit;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--paper);
+  }
+  .calc output {
+    font-size: 1.05rem;
+  }
+  .calc output strong {
+    font-size: 1.5rem;
+  }
+  .source {
+    color: var(--slate);
+    font-size: 0.88rem;
+  }
+  h2 + h3 {
+    margin-top: 1rem;
+  }
+</style>
+<script>
+  const form = document.getElementById('calc') as HTMLFormElement | null;
+  if (form) {
+    const d = form.dataset;
+    const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, useGrouping: 'always' });
+    const pintar = () => {
+      const kw = parseFloat(String((form.elements.namedItem('kw') as HTMLInputElement).value).replace(',', '.'));
+      const sit = (form.elements.namedItem('sit') as HTMLSelectElement).value;
+      const out = form.elements.namedItem('res') as HTMLOutputElement;
+      if (!(kw > 0)) {
+        out.textContent = 'Escribe la potencia en kW, por ejemplo 3,45.';
+        return;
+      }
+      const ext = sit === 'nueva' ? kw * Number(d.extension) : 0;
+      const acc = kw * Number(d.acceso);
+      const base = ext + acc + Number(d.enganche);
+      const total = base * (1 + Number(d.iva));
+      out.innerHTML = `<strong>${eur.format(total)}</strong> con IVA<br>Extensión ${eur.format(ext)}, acceso ${eur.format(acc)}, enganche ${eur.format(Number(d.enganche))} (sin IVA).`;
+    };
+    form.addEventListener('input', pintar);
+    pintar();
+  }
+</script>
