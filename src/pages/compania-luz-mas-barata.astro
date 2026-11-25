@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import { OFERTAS } from '../data/ofertas';
 import { EMPRESAS } from '../data/empresas';
+import { MARCAS } from '../data/marcas';
 import { eur } from '../lib/calculo';
 import { getPvpcPeriodAverages } from '../lib/pvpc';
 import { PERFILES, rankingCompanias, enlaceComparador } from '../lib/ranking';
@@ -77,6 +78,13 @@ const description = `La compañía de luz más barata en ${mes} para un hogar t�
       ¿Ya eres cliente de una de las grandes? Mira qué pagas y cómo saber si tienes el PVPC:{' '}
       {EMPRESAS.map((e, i) => (
         <><a href={`/precio-luz-hoy-${e.slug}`}>{e.nombre}</a>{i < EMPRESAS.length - 2 ? ', ' : i === EMPRESAS.length - 2 ? ' y ' : '.'}</>
+      ))}
+    </p>
+
+    <p>
+      Análisis por compañía:{' '}
+      {MARCAS.map((m, i) => (
+        <><a href={`/companias/${m.slug}`}>{m.compania}</a>{i < MARCAS.length - 2 ? ', ' : i === MARCAS.length - 2 ? ' y ' : '.'}</>
       ))}
     </p>
 

@@ -1,0 +1,169 @@
+---
+import Base from '../../layouts/Base.astro';
+import { MARCAS } from '../../data/marcas';
+import { OFERTAS } from '../../data/ofertas';
+import { costeAnual, eur } from '../../lib/calculo';
+import { getPvpcPeriodAverages, fmtPrice } from '../../lib/pvpc';
+import { PERFILES, rankingCompanias, enlaceComparador } from '../../lib/ranking';
+
+export const prerender = false;
+
+const marca = MARCAS.find((m) => m.slug === Astro.params.marca);
+if (!marca) return new Response(null, { status: 404 });
+Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
+
+const pvpc = await getPvpcPeriodAverages();
+const tipico = PERFILES.find((p) => p.id === 'tipico')!;
+const posiciones = PERFILES.map((perfil) => {
+  const filas = rankingCompanias(perfil, pvpc);
+  const i = filas.findIndex((f) => f.compania === marca.compania);
+  return { perfil, filas, puesto: i + 1, fila: filas[i], mejor: filas[0] };
+});
+const enTipico = posiciones.find((p) => p.perfil.id === 'tipico')!;
+const alternativas = enTipico.filas.filter((f) => f.compania !== marca.compania && f.total < enTipico.fila.total).slice(0, 3);
+
+const ofertas = OFERTAS.filter((o) => o.compania === marca.compania && !o.oculta).map((o) => ({
+  ...o,
+  total: costeAnual(o.energia, o.potencia, o.cuotaMensual ?? 0, tipico.potencia, tipico.consumo),
+}));
+const potenciaAno = (d: number) => (d * 365).toLocaleString('es-ES', { maximumFractionDigits: 2 });
+const precio = (e: (typeof OFERTAS)[number]['energia']) =>
+  'unico' in e ? `${fmtPrice(e.unico)} €/kWh todo el día` : `${fmtPrice(e.punta)} punta, ${fmtPrice(e.llano)} llano, ${fmtPrice(e.valle)} valle`;
+
+const ultimaConsulta = ofertas.map((o) => o.consultado).sort().at(-1)!;
+const fmtFecha = (d: string, opts: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat('es-ES', { ...opts, timeZone: 'UTC' }).format(new Date(`${d}T12:00:00Z`));
+const mes = fmtFecha(ultimaConsulta, { month: 'long', year: 'numeric' });
+const tp = marca.trustpilot;
+const nota = tp.nota.toLocaleString('es-ES', { minimumFractionDigits: 1 });
+
+const veredicto =
+  enTipico.puesto === 1
+    ? `es la más barata de las ${enTipico.filas.length} opciones que comparamos`
+    : enTipico.puesto <= 3
+      ? `está entre las tres más baratas (puesto ${enTipico.puesto} de ${enTipico.filas.length})`
+      : `queda en el puesto ${enTipico.puesto} de ${enTipico.filas.length}, ${eur(enTipico.fila.total - enTipico.mejor.total)} al año por encima de la más barata`;
+
+const title = `${marca.compania}: tarifas de luz, precios y opiniones (${mes}) | La factura de la luz`;
+const description = `Análisis de ${marca.compania}: precios de sus tarifas de luz, cuánto cuesta al año con impuestos, en qué puesto queda frente a otras compañías y qué dicen sus clientes (${nota}/5 en Trustpilot).`;
+const salida = (o: (typeof ofertas)[number]) => ({
+  href: o.afiliado?.url ?? o.url,
+  rel: o.afiliado ? 'sponsored noopener' : 'noopener',
+});
+---
+<Base title={title} description={description}>
+  <article class="prose">
+    <h1>{marca.compania}: tarifas de luz y opiniones</h1>
+    <p class="answer">
+      Para un hogar típico, su mejor tarifa es {enTipico.fila.nombre}: {eur(enTipico.fila.total)} al año con impuestos. {marca.compania} {veredicto}.
+    </p>
+    <p class="muted">Precios revisados en la web de {marca.compania} el {fmtFecha(ultimaConsulta, { day: 'numeric', month: 'long', year: 'numeric' })}.</p>
+
+    <h2>Sus tarifas de luz</h2>
+    <table>
+      <thead><tr><th scope="col">Tarifa</th><th scope="col">Energía (sin impuestos)</th><th scope="col">Hogar típico</th></tr></thead>
+      <tbody>
+        {ofertas.map((o) => (
+          <tr>
+            <th scope="row">
+              <a href={salida(o).href} rel={salida(o).rel} target="_blank">{o.nombre}</a>
+              {o.afiliado && <span class="tag">Patrocinado</span>}
+              <br />
+              <span class="muted">
+                Potencia: {o.potencia.p1 === o.potencia.p2 ? `${potenciaAno(o.potencia.p1)} €/kW al año` : `${potenciaAno(o.potencia.p1)} €/kW al año en punta y ${potenciaAno(o.potencia.p2)} en valle`}.
+                {o.condiciones.length > 0 && ` ${o.condiciones.join('. ')}.`}
+              </span>
+            </th>
+            <td>{precio(o.energia)}</td>
+            <td class="num">{eur(o.total)}/año</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <p class="muted">Hogar típico: 3.000 kWh al año y 3,45 kW. Incluye IVA, impuesto eléctrico y alquiler del contador.</p>
+
+    <h2>¿Es barata? Su puesto según tu consumo</h2>
+    <table>
+      <thead><tr><th scope="col">Perfil</th><th scope="col">Puesto</th><th scope="col">Su mejor tarifa</th><th scope="col">La más barata</th></tr></thead>
+      <tbody>
+        {posiciones.map((p) => (
+          <tr>
+            <th scope="row">{p.perfil.nombre}<br /><span class="muted">{p.perfil.descripcion}</span></th>
+            <td>{p.puesto}.º de {p.filas.length}</td>
+            <td>{eur(p.fila.total)}<br /><span class="muted">{p.fila.nombre}</span></td>
+            <td>{p.puesto === 1 ? 'Es ella' : <>{p.mejor.oferta ? p.mejor.compania : 'PVPC'}<br /><span class="muted">{eur(p.mejor.total)}</span></>}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {alternativas.length > 0 && (
+      <p>
+        Para un hogar típico salen más baratas{' '}
+        {alternativas.map((f, i) => (
+          <>{f.oferta ? f.compania : 'el PVPC'} ({eur(enTipico.fila.total - f.total)} menos al año){i < alternativas.length - 2 ? ', ' : i === alternativas.length - 2 ? ' y ' : '.'}</>
+        ))}{' '}
+        <a href="/compania-luz-mas-barata">Ver el ranking completo</a>.
+      </p>
+    )}
+
+    <h2>Opiniones de clientes</h2>
+    <p>
+      En Trustpilot tiene <strong>{nota} sobre 5</strong> con {tp.opiniones.toLocaleString('es-ES', { useGrouping: 'always' })} opiniones.
+      El {tp.unaEstrella} % le pone una sola estrella.{' '}
+      <span class="muted">Dato consultado el {fmtFecha(tp.fecha, { day: 'numeric', month: 'long', year: 'numeric' })}. <a href={tp.url} rel="noopener nofollow" target="_blank">Ver las opiniones</a>.</span>
+    </p>
+    <p class="muted">
+      Es una nota orientativa: la escriben los clientes que deciden opinar. Aquí no publicamos opiniones propias ni de
+      clientes que no podamos enlazar.
+    </p>
+
+    <h2>Lo que conviene saber</h2>
+    <ul>
+      {marca.notas.map((n) => (
+        <li>{n.texto}{n.fuente && <> <span class="muted">(Fuente: <a href={n.fuente.url} rel="noopener" target="_blank">{n.fuente.nombre}</a>.)</span></>}</li>
+      ))}
+      {marca.paginaHoy && <li>Si tienes el PVPC en el grupo {marca.compania}, mira <a href={marca.paginaHoy}>el precio de la luz de hoy</a>.</li>}
+    </ul>
+
+    <h2>¿Te conviene?</h2>
+    <p>
+      Depende de tu consumo y de tu potencia más que de la marca.{' '}
+      <a href={enlaceComparador(tipico)}>Pon tus datos en el comparador</a> y verás {marca.compania} junto a las demás,
+      ordenadas solo por precio. Si alguna compañía nos paga comisión, su enlace lleva la etiqueta «Patrocinado» y no sube
+      por ello (<a href="/como-ganamos-dinero">cómo ganamos dinero</a>).
+    </p>
+
+    <h2>Otras compañías</h2>
+    <ul class="otras">
+      {MARCAS.filter((m) => m.slug !== marca.slug).map((m) => (
+        <li><a href={`/companias/${m.slug}`}>{m.compania}: tarifas y opiniones</a></li>
+      ))}
+    </ul>
+  </article>
+</Base>
+<style>
+  .answer {
+    font-size: clamp(1.3rem, 3vw, 1.7rem);
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.5rem;
+  }
+  .muted {
+    color: var(--slate);
+    font-size: 0.92rem;
+  }
+  .tag {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid var(--slate);
+    border-radius: 3px;
+  }
+  .num {
+    white-space: nowrap;
+  }
+  .otras {
+    padding-left: 1.2rem;
+  }
+</style>
