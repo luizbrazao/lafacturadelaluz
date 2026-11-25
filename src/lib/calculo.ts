@@ -24,4 +24,4 @@ export function costeAnual(energia: Precio, precioPotencia: { p1: number; p2: nu
   return (base + iee + contador) * (1 + FISCALIDAD.iva);
 }
 
-export const eur = (n: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+export const eur = (n: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' }).format(n);

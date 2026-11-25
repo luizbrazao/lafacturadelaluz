@@ -83,7 +83,7 @@ const data = {
     const form = document.getElementById('form') as HTMLFormElement;
     const list = document.getElementById('results')!;
     const resumen = document.getElementById('resumen')!;
-    const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+    const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' });
 
     function coste(energia: Precio, potencia: { p1: number; p2: number }, cuotaMensual: number, kw: { p1: number; p2: number }, c: { punta: number; llano: number; valle: number }) {
       const e = 'unico' in energia
@@ -131,7 +131,7 @@ const data = {
       const kwh = c.punta + c.llano + c.valle;
       const kwTxt = kw.p1 === kw.p2 ? `${kw.p1.toLocaleString('es-ES')} kW` : `${kw.p1.toLocaleString('es-ES')} kW en punta y ${kw.p2.toLocaleString('es-ES')} kW en valle`;
       resumen.textContent = kwh > 0 && kw.p1 > 0
-        ? `Con ${kwTxt} y ${kwh.toLocaleString('es-ES')} kWh al año, la más barata sale por ${eur.format(best)} al año`
+        ? `Con ${kwTxt} y ${kwh.toLocaleString('es-ES', { useGrouping: 'always' })} kWh al año, la más barata sale por ${eur.format(best)} al año`
         : 'Introduce tu potencia y tu consumo';
 
       list.replaceChildren(

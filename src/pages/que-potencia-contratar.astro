@@ -87,7 +87,7 @@ const f = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, m
   <script define:vars={{ factor: (1 + FISCALIDAD.iee) * (1 + FISCALIDAD.iva), enganche: 9.04 * (1 + FISCALIDAD.iva) }}>
     const form = document.getElementById('calc');
     const out = document.getElementById('result');
-    const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+    const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' });
     function calc() {
       const fd = new FormData(form);
       const actual = Number(fd.get('actual'));

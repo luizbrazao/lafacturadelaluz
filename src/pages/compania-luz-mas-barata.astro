@@ -1,0 +1,204 @@
+---
+import Base from '../layouts/Base.astro';
+import { OFERTAS } from '../data/ofertas';
+import { EMPRESAS } from '../data/empresas';
+import { eur } from '../lib/calculo';
+import { getPvpcPeriodAverages } from '../lib/pvpc';
+import { PERFILES, rankingCompanias, enlaceComparador } from '../lib/ranking';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
+
+const pvpc = await getPvpcPeriodAverages();
+const porPerfil = PERFILES.map((p) => ({ perfil: p, filas: rankingCompanias(p, pvpc) }));
+const tipico = porPerfil.find((x) => x.perfil.id === 'tipico')!;
+const primero = tipico.filas[0];
+const segundo = tipico.filas[1];
+
+const ultimaConsulta = OFERTAS.map((o) => o.consultado).sort().at(-1)!;
+const mes = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+  .format(new Date(`${ultimaConsulta}T12:00:00Z`));
+const fechaConsulta = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+  new Date(`${ultimaConsulta}T12:00:00Z`),
+);
+const companias = new Set(OFERTAS.filter((o) => !o.oculta).map((o) => o.compania)).size;
+const nombreFila = (f: (typeof primero)) => (f.oferta ? f.compania : 'PVPC (tarifa regulada)');
+
+const title = `Compañía de luz más barata (${mes}): ranking con precios reales | La factura de la luz`;
+const description = `La compañía de luz más barata en ${mes} para un hogar típico es ${nombreFila(primero)}, con ${eur(primero.total)} al año con impuestos. Ranking de ${companias} compañías y el PVPC, según tu consumo.`;
+---
+<Base title={title} description={description}>
+  <article class="prose">
+    <h1>Compañía de luz más barata en {mes}</h1>
+    <p class="answer">
+      Para un hogar típico, la más barata es <strong>{nombreFila(primero)}</strong>
+      {primero.oferta && <> con su tarifa {primero.nombre}</>}: {eur(primero.total)} al año con impuestos.
+    </p>
+    <p class="lead">
+      La segunda es {nombreFila(segundo)}, {eur(segundo.total - primero.total)} más cara al año. Pero el orden cambia con tu
+      consumo y tu potencia, así que mira también el perfil que más se parezca a tu casa.
+    </p>
+
+    <h2>Ranking para un hogar típico</h2>
+    <p>
+      3.000 kWh al año y 3,45 kW de potencia. De cada compañía contamos su tarifa más barata para este consumo. Precios con
+      IVA, impuesto eléctrico y alquiler del contador.
+    </p>
+    <table>
+      <thead><tr><th scope="col">#</th><th scope="col">Compañía y tarifa</th><th scope="col">Al año</th><th scope="col">Al mes</th><th scope="col">Diferencia</th></tr></thead>
+      <tbody>
+        {tipico.filas.map((f, i) => {
+          return (
+            <tr class={i === 0 ? 'best' : undefined}>
+              <td>{i + 1}</td>
+              <th scope="row">
+                {nombreFila(f)}
+                <br />
+                <span class="muted">
+                  {f.oferta ? (
+                    <a href={f.oferta.afiliado?.url ?? f.oferta.url} rel={f.oferta.afiliado ? 'sponsored noopener' : 'noopener'} target="_blank">{f.nombre}</a>
+                  ) : (
+                    'precio medio de los últimos 30 días'
+                  )}
+                  {f.oferta?.afiliado && <span class="tag">Patrocinado</span>}
+                  {f.oferta?.condiciones.some((c) => /descuento/i.test(c)) && ', precio del primer año'}
+                </span>
+              </th>
+              <td>{eur(f.total)}</td>
+              <td>{eur(f.total / 12)}</td>
+              <td>{i === 0 ? '' : `+${eur(f.total - primero.total)}`}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+    <p><a href={enlaceComparador(tipico.perfil)}>Cambia estos números por los de tu factura en el comparador</a>.</p>
+    <p>
+      ¿Ya eres cliente de una de las grandes? Mira qué pagas y cómo saber si tienes el PVPC:{' '}
+      {EMPRESAS.map((e, i) => (
+        <><a href={`/precio-luz-hoy-${e.slug}`}>{e.nombre}</a>{i < EMPRESAS.length - 2 ? ', ' : i === EMPRESAS.length - 2 ? ' y ' : '.'}</>
+      ))}
+    </p>
+
+    <h2>La más barata según tu consumo</h2>
+    <div class="perfiles">
+      {porPerfil.map(({ perfil, filas }) => (
+        <section>
+          <h3>{perfil.nombre}</h3>
+          <p class="muted">{perfil.descripcion}</p>
+          <ol>
+            {filas.slice(0, 3).map((f) => (
+              <li>{nombreFila(f)} <span class="muted">{eur(f.total)} al año</span></li>
+            ))}
+          </ol>
+        </section>
+      ))}
+    </div>
+    <p>
+      Con más potencia contratada pesa más el término de potencia, y por eso en la casa grande ganan las tarifas con la
+      potencia más barata. Algunas ofertas solo valen hasta
+      cierto consumo: la de TotalEnergies, por ejemplo, es para menos de 4.000 kWh al año y no entra en la casa grande.
+    </p>
+
+    <h2>Cómo hacemos el ranking</h2>
+    <ul>
+      <li>
+        Comparamos {companias} compañías con precios fijos o por tramos, sacados a mano de la web oficial de cada una. La
+        última revisión es del {fechaConsulta}.
+      </li>
+      <li>
+        El PVPC cambia cada hora. Usamos la media de los últimos 30 días según Red Eléctrica, así que su posición puede
+        moverse de un mes a otro.
+      </li>
+      <li>
+        Los descuentos que solo duran el primer año se cuentan, pero los marcamos. Al segundo año esa tarifa sube.
+      </li>
+      <li>
+        No incluimos tarifas indexadas al mercado mayorista ni packs con servicios obligatorios.
+      </li>
+      <li>
+        El orden es solo por precio. Si una compañía nos paga comisión, su enlace lleva la etiqueta «Patrocinado» y no
+        sube por ello. <a href="/como-ganamos-dinero">Cómo ganamos dinero</a>.
+      </li>
+    </ul>
+
+    <h2>Preguntas frecuentes</h2>
+    <h3>¿Cuál es la compañía de luz más barata ahora mismo?</h3>
+    <p>
+      Para un hogar de 3.000 kWh al año, {nombreFila(primero)}. Si gastas poco o mucho, o si tienes coche eléctrico, puede
+      ser otra: la <a href={enlaceComparador(tipico.perfil)}>cuenta con tus datos</a> es la que vale.
+    </p>
+    <h3>¿Es más barato el PVPC que el mercado libre?</h3>
+    <p>
+      Depende del mes. Con los precios de los últimos 30 días, el PVPC sale en el puesto{' '}
+      {tipico.filas.findIndex((f) => !f.oferta) + 1} de {tipico.filas.length} para un hogar típico. Cuando el mercado
+      mayorista baja, el PVPC baja con él; cuando sube, también.
+    </p>
+    <h3>¿Cambiar de compañía de luz cuesta dinero?</h3>
+    <p>
+      No. El cambio de comercializadora es gratis, no hay corte de luz y no viene ningún técnico: lo tramita la nueva
+      compañía. Lo único que puede costar es una penalización si tu contrato actual tiene permanencia, así que revísalo
+      antes.
+    </p>
+    <h3>¿Me conviene una tarifa de tres tramos?</h3>
+    <p>
+      Si puedes mover consumo a la noche y al fin de semana, sí. Si no, una de precio único suele salir igual o mejor. El
+      <a href="/tarifa-luz-coche-electrico">caso del coche eléctrico</a> es el ejemplo más claro de cuándo compensa.
+    </p>
+  </article>
+</Base>
+<style>
+  .answer {
+    font-size: clamp(1.4rem, 3.4vw, 1.9rem);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.75rem;
+  }
+  .muted {
+    color: var(--slate);
+    font-size: 0.92rem;
+  }
+  .tag {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid var(--slate);
+    border-radius: 3px;
+  }
+  tr.best th,
+  tr.best td {
+    background: #eef7f3;
+  }
+  h2 + h3 {
+    margin-top: 1rem;
+  }
+  td:last-child {
+    white-space: nowrap;
+  }
+  .perfiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1rem 2rem;
+    margin: 1rem 0;
+  }
+  .perfiles h3 {
+    margin: 0;
+  }
+  .perfiles p {
+    margin: 0.1rem 0 0.5rem;
+  }
+  .perfiles ol {
+    margin: 0;
+    padding-left: 1.3rem;
+  }
+  .perfiles li {
+    margin-bottom: 0.25rem;
+  }
+  @media (max-width: 34rem) {
+    thead th:nth-child(4),
+    tbody td:nth-child(4) {
+      display: none;
+    }
+  }
+</style>
