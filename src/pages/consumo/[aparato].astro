@@ -1,0 +1,190 @@
+---
+import Base from '../../layouts/Base.astro';
+import { APARATOS } from '../../data/aparatos';
+import { getDayPrices, madridDate, madridHour, fmtHour, fmtPrice, fmtLongDate } from '../../lib/pvpc';
+import { costes, centimos, IMPUESTOS, PRECIO_FIJO_REF } from '../../lib/aparatos';
+const eur = (n: number) => `${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+
+export const prerender = false;
+
+const a = APARATOS.find((x) => x.slug === Astro.params.aparato);
+if (!a) return new Response(null, { status: 404 });
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+
+const day = await getDayPrices(madridDate());
+const hora = madridHour();
+const c = day ? costes(a, day, hora) : null;
+const sujeto = `${a.articulo} ${a.nombre}`;
+const kwhTxt = a.kwh.toLocaleString('es-ES');
+const usarlo = a.articulo === 'una' ? 'usarla' : 'usarlo';
+const Usarlo = usarlo[0].toUpperCase() + usarlo.slice(1);
+const title = a.continuo
+  ? `Cuánto consume ${sujeto} y cuánto cuesta al mes | La factura de la luz`
+  : `Cuánto consume ${sujeto} y cuánto cuesta ${usarlo} hoy | La factura de la luz`;
+const description = c
+  ? a.continuo
+    ? `Cuánto gasta ${sujeto} al año y cuánto te cuesta al mes con el precio de la luz de hoy. Datos de consumo con fuente y calculadora.`
+    : `Cuánto consume ${sujeto} y cuánto cuesta hoy: ${centimos(c.ahora)} por ${a.unidad} ahora y ${centimos(c.mejor.coste)} de ${fmtHour(c.mejor.start)} a ${fmtHour(c.mejor.end)}. Con calculadora.`
+  : `Cuánto consume ${sujeto} y cuánto cuesta ${usarlo} según el precio de la luz.`;
+const otros = APARATOS.filter((x) => x.slug !== a.slug);
+---
+<Base title={title} description={description}>
+  <article class="prose">
+    <h1>Cuánto consume {sujeto}</h1>
+    {c && day && !a.continuo && (
+      <>
+        <p class="answer">
+          {Usarlo} ahora cuesta {centimos(c.ahora)} por {a.unidad}. Hoy lo más barato es de {fmtHour(c.mejor.start)} a{' '}
+          {fmtHour(c.mejor.end)}: {centimos(c.mejor.coste)}.
+        </p>
+        <p class="muted">
+          Con el PVPC de hoy, {fmtLongDate(day.date)}, y un consumo de {kwhTxt} kWh por {a.unidad}. Impuestos incluidos.
+          {c.peor.coste > c.mejor.coste && <> En la franja más cara ({fmtHour(c.peor.start)} a {fmtHour(c.peor.end)}) serían {centimos(c.peor.coste)}.</>}
+        </p>
+      </>
+    )}
+    {c && a.continuo && (
+      <p class="answer">
+        Con {a.continuo.kwhAno} kWh al año te cuesta unos {eur(c.mesMedia)} al mes con el PVPC de hoy, o {eur(c.mesFijo)} con
+        una tarifa fija típica.
+      </p>
+    )}
+
+    <h2>Cuánta luz gasta</h2>
+    <p><strong>Consumo de referencia:</strong> {a.rango}.</p>
+    <p>{a.explicacion}</p>
+    {a.fuente && <p class="muted">Fuente: <a href={a.fuente.url} rel="noopener" target="_blank">{a.fuente.nombre}</a>.</p>}
+
+    {c && (
+      <form
+        class="calc"
+        id="calc"
+        data-ahora={c.precioAhora}
+        data-mejor={c.mejor.coste / (a.kwh * IMPUESTOS)}
+        data-media={day!.avg}
+        data-fijo={PRECIO_FIJO_REF}
+        data-imp={IMPUESTOS}
+        data-continuo={a.continuo ? '1' : ''}
+      >
+        <h3>Calcula con tu aparato</h3>
+        {a.continuo ? (
+          <label><span>Consumo anual de la etiqueta (kWh al año)</span><input name="kwhano" type="number" inputmode="decimal" min="1" step="1" value={a.continuo.kwhAno} /></label>
+        ) : (
+          <>
+            <label><span>kWh por {a.unidad}</span><input name="kwh" type="number" inputmode="decimal" min="0.01" step="0.01" value={a.kwh} /></label>
+            <label><span>{a.porHora ? 'Horas a la semana' : 'Veces a la semana'}</span><input name="usos" type="number" inputmode="numeric" min="0" step="1" value={a.usosSemana} /></label>
+          </>
+        )}
+        <output name="res" aria-live="polite"></output>
+      </form>
+    )}
+
+    {c && !a.continuo && (
+      <>
+        <h2>Cuánto te cuesta al mes</h2>
+        <table>
+          <thead><tr><th scope="col">Cómo lo usas</th><th scope="col">Al mes</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">PVPC, a cualquier hora (precio medio de hoy)</th><td>{eur(c.mesMedia)}</td></tr>
+            <tr><th scope="row">PVPC, siempre en la franja más barata</th><td>{eur(c.mesMejor)}</td></tr>
+            <tr><th scope="row">Tarifa de precio fijo típica ({fmtPrice(PRECIO_FIJO_REF)} €/kWh)</th><td>{eur(c.mesFijo)}</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">
+          {a.usosSemana} {a.porHora ? 'horas' : 'usos'} a la semana. El precio fijo típico es la mediana de las tarifas de precio
+          único que comparamos. Solo el término de energía: la potencia la pagas igual.
+        </p>
+      </>
+    )}
+
+    <h2>Cómo gastar menos</h2>
+    <p>{a.consejo}</p>
+    {!a.continuo && (
+      <p>
+        Cambiar de hora solo te ahorra si tienes el PVPC o una tarifa con tramos. Con precio fijo cuesta lo mismo a cualquier
+        hora. <a href="/">Mira el precio de la luz de hoy por horas</a> o <a href="/comparador-tarifas-luz">compara tarifas</a>.
+      </p>
+    )}
+
+    <h2>Otros aparatos</h2>
+    <ul class="otros">
+      {otros.map((o) => <li><a href={`/consumo/${o.slug}`}>Cuánto consume {o.articulo} {o.nombre}</a></li>)}
+    </ul>
+    <p><a href="/consumo">Todos los aparatos en una tabla</a>.</p>
+  </article>
+</Base>
+<style>
+  .answer {
+    font-size: clamp(1.3rem, 3vw, 1.7rem);
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.5rem;
+  }
+  .muted {
+    color: var(--slate);
+    font-size: 0.92rem;
+  }
+  .calc {
+    display: grid;
+    gap: 0.75rem;
+    margin: 1.5rem 0;
+    padding: 1.1rem 1.25rem;
+    background: #fff;
+    border: 1px solid var(--rule);
+    max-width: 30rem;
+  }
+  .calc h3 {
+    margin: 0;
+  }
+  .calc label {
+    display: grid;
+    gap: 0.25rem;
+  }
+  .calc label span {
+    font-size: 0.9rem;
+    color: var(--slate);
+  }
+  .calc input {
+    font: inherit;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--paper);
+  }
+  .otros {
+    columns: 2 14rem;
+    padding-left: 1.2rem;
+  }
+</style>
+<script>
+  const form = document.getElementById('calc') as HTMLFormElement | null;
+  if (form) {
+    const d = form.dataset;
+    const imp = Number(d.imp);
+    const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, useGrouping: 'always' });
+    const val = (n: string) => {
+      const el = form.elements.namedItem(n) as HTMLInputElement | null;
+      return el ? parseFloat(el.value.replace(',', '.')) : NaN;
+    };
+    const pintar = () => {
+      const out = form.elements.namedItem('res') as HTMLOutputElement;
+      if (d.continuo) {
+        const ano = val('kwhano');
+        if (!(ano > 0)) return (out.textContent = 'Escribe el consumo anual de la etiqueta.');
+        const mes = ano / 12;
+        out.innerHTML = `Al mes: <strong>${eur.format(mes * Number(d.media) * imp)}</strong> con el PVPC de hoy y ${eur.format(mes * Number(d.fijo) * imp)} con una tarifa fija típica.`;
+        return;
+      }
+      const kwh = val('kwh');
+      const usos = val('usos');
+      if (!(kwh > 0)) return (out.textContent = 'Escribe los kWh de tu aparato.');
+      const ahora = kwh * Number(d.ahora) * imp;
+      const mejor = kwh * Number(d.mejor) * imp;
+      const mes = (usos > 0 ? usos : 0) * 52 / 12 * kwh;
+      out.innerHTML = `Ahora: <strong>${eur.format(ahora)}</strong>. En la mejor franja de hoy: ${eur.format(mejor)}.<br>Al mes: ${eur.format(mes * Number(d.media) * imp)} con el PVPC a cualquier hora, ${eur.format(mes * Number(d.fijo) * imp)} con precio fijo típico.`;
+    };
+    form.addEventListener('input', pintar);
+    pintar();
+  }
+</script>

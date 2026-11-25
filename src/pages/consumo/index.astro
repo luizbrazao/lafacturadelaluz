@@ -1,0 +1,54 @@
+---
+import Base from '../../layouts/Base.astro';
+import { APARATOS } from '../../data/aparatos';
+import { getDayPrices, madridDate, madridHour, fmtHour, fmtLongDate } from '../../lib/pvpc';
+import { costes, centimos } from '../../lib/aparatos';
+const eur = (n: number) => `${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+
+const day = await getDayPrices(madridDate());
+const hora = madridHour();
+const filas = day ? APARATOS.map((a) => ({ a, c: costes(a, day, hora) })) : [];
+---
+<Base
+  title="Cuánto consumen los electrodomésticos y cuánto cuesta usarlos hoy | La factura de la luz"
+  description="Lo que gasta cada electrodoméstico (lavadora, secadora, horno, vitro, freidora de aire, radiador...) y cuánto cuesta usarlo ahora y en la hora más barata de hoy."
+>
+  <article class="prose">
+    <h1>Cuánto cuesta usar cada electrodoméstico hoy</h1>
+    {day ? (
+      <>
+        <p class="lead">
+          Con el PVPC de hoy, {fmtLongDate(day.date)}, a las {fmtHour(hora)}. Impuestos incluidos y consumos de referencia:
+          entra en cada aparato para ajustarlo al tuyo.
+        </p>
+        <table>
+          <thead><tr><th scope="col">Aparato</th><th scope="col">Ahora</th><th scope="col">Mejor franja de hoy</th></tr></thead>
+          <tbody>
+            {filas.map(({ a, c }) => (
+              <tr>
+                <th scope="row"><a href={`/consumo/${a.slug}`}>{a.nombre[0].toUpperCase() + a.nombre.slice(1)}</a><br /><span class="muted">{a.continuo ? `${a.continuo.kwhAno} kWh al año` : `${a.kwh.toLocaleString('es-ES')} kWh por ${a.unidad}`}</span></th>
+                <td>{a.continuo ? `${eur(c.mesMedia)} al mes` : centimos(c.ahora)}</td>
+                <td>{a.continuo ? 'Funciona todo el día' : <>{centimos(c.mejor.coste)}<br /><span class="muted">{fmtHour(c.mejor.start)} a {fmtHour(c.mejor.end)}</span></>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
+    ) : (
+      <p>No hemos podido cargar los precios de Red Eléctrica ahora mismo. Recarga en unos minutos.</p>
+    )}
+    <p>
+      Mover un aparato de hora solo ahorra si tienes el PVPC o una tarifa por tramos. <a href="/comparador-tarifas-luz">Compara
+      tu tarifa</a> o mira <a href="/">el precio de la luz de hoy por horas</a>.
+    </p>
+  </article>
+</Base>
+<style>
+  .muted {
+    color: var(--slate);
+    font-size: 0.9rem;
+  }
+</style>

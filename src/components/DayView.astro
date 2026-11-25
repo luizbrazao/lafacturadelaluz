@@ -57,6 +57,7 @@ const verb = when === 'hoy' ? 'es' : 'será';
       <dd>de {fmtHour(lavavajillas.start)} a {fmtHour(lavavajillas.end)}, media de {fmtPrice(lavavajillas.avg)} €/kWh</dd>
     </div>
   </dl>
+  <p class="more"><a href="/consumo">Cuánto cuesta hoy usar cada electrodoméstico</a></p>
 </section>
 
 <section class="cheap">
@@ -190,6 +191,9 @@ const verb = when === 'hoy' ? 'es' : 'será';
   }
   .tips dt {
     color: var(--slate);
+  }
+  .tips .more {
+    margin-top: 1rem;
   }
   .tips dd {
     margin: 0.2rem 0 0;
