@@ -8,10 +8,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=600');
 
 const pvpc = await getPvpcPeriodAverages();
 const revisado = fmtLongDate(FISCALIDAD.revisado).replace(/^[^,]+, /, '');
-const companias = new Set(OFERTAS.map((o) => o.compania)).size;
+const visibles = OFERTAS.filter((o) => !o.oculta);
+const companias = new Set(visibles.map((o) => o.compania)).size;
 
 const data = {
-  ofertas: OFERTAS,
+  ofertas: visibles,
   fiscalidad: FISCALIDAD,
   pvpc: pvpc && { energia: { punta: pvpc.punta, llano: pvpc.llano, valle: pvpc.valle }, potencia: PVPC_POTENCIA_DIA },
 };
@@ -57,7 +58,7 @@ const data = {
     <h2>Cómo calculamos</h2>
     <ul>
       <li>
-        Comparamos {OFERTAS.length} tarifas de {companias} compañías, con los precios publicados en sus webs el {revisado}.
+        Comparamos {visibles.length} tarifas de {companias} compañías, con los precios publicados en sus webs el {revisado}.
         Antes de contratar, comprueba el precio en la web de la compañía.
       </li>
       <li>

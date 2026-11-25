@@ -13,6 +13,7 @@ export interface Oferta {
   potencia: { p1: number; p2: number };
   cuotaMensual?: number; // € al mes, si la hay
   maxKwhAno?: number; // la oferta solo vale por debajo de este consumo anual
+  oculta?: boolean; // datos guardados pero no se muestran en el comparador
   condiciones: string[]; // lo que hay que saber antes de contratar
   url: string; // página oficial de la tarifa
   afiliado?: { url: string; red: string }; // solo si hay acuerdo activo: se marca «Patrocinado»
@@ -132,6 +133,59 @@ export const OFERTAS: Oferta[] = [
     condiciones: ['Precio para consumos de menos de 4.000 kWh al año', 'Sin permanencia'],
     url: 'https://www.totalenergies.es/es/hogares/tarifas-luz/a-tu-aire-siempre',
     consultado: '2026-11-25',
+  },
+  {
+    id: 'holaluz-clasica',
+    compania: 'Holaluz',
+    nombre: 'Tarifa Clásica',
+    energia: { unico: 0.169 },
+    potencia: { p1: 0.12, p2: 0.12 },
+    condiciones: ['Precio si contratas online (0,179 €/kWh por otros canales)', 'Sin permanencia', 'Precio fijo 12 meses'],
+    url: 'https://www.holaluz.com/luz/tarifas-luz',
+    consultado: '2026-11-25',
+  },
+  {
+    id: 'holaluz-3',
+    compania: 'Holaluz',
+    nombre: 'Tarifa 3',
+    energia: { punta: 0.265, llano: 0.186, valle: 0.166 },
+    potencia: { p1: 0.12, p2: 0.12 },
+    condiciones: ['Sin permanencia', 'Precio fijo 12 meses'],
+    url: 'https://www.holaluz.com/luz/tarifas-luz',
+    consultado: '2026-11-25',
+  },
+  {
+    id: 'repsol-sin-horarios',
+    compania: 'Repsol',
+    nombre: 'Tarifa Sin Horarios',
+    energia: { unico: 0.1649 },
+    potencia: { p1: 0.099726, p2: 0.099726 },
+    condiciones: ['Sin el servicio Asistente 24h (con él: 0,1499 €/kWh y 4,99 € al mes)', 'Sin permanencia'],
+    url: 'https://www.repsol.es/particulares/hogar/luz-y-gas/tarifas/tarifa-sin-horarios/',
+    consultado: '2026-11-25',
+  },
+  // Iberdrola: guardada pero oculta. niba (grupo Iberdrola) prohíbe en Awin compararse con Iberdrola.
+  {
+    id: 'iberdrola-online',
+    compania: 'Iberdrola',
+    nombre: 'Plan Online',
+    energia: { unico: 0.151 },
+    potencia: { p1: 0.1068, p2: 0.1068 },
+    condiciones: ['Precio estable 12 meses', 'Sin permanencia', 'Gestión 100 % online'],
+    url: 'https://www.iberdrola.es/luz/tarifas/ofertas-luz',
+    consultado: '2026-11-25',
+    oculta: true,
+  },
+  {
+    id: 'iberdrola-online-3p',
+    compania: 'Iberdrola',
+    nombre: 'Plan Online 3 Periodos',
+    energia: { punta: 0.208, llano: 0.153, valle: 0.12 },
+    potencia: { p1: 0.0904, p2: 0.0301 },
+    condiciones: ['Precio estable 12 meses', 'Sin permanencia'],
+    url: 'https://www.iberdrola.es/luz/tarifas/ofertas-luz',
+    consultado: '2026-11-25',
+    oculta: true,
   },
 ];
 
