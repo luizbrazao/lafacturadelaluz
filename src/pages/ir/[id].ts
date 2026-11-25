@@ -1,12 +1,15 @@
 import type { APIRoute } from 'astro';
 import { OFERTAS } from '../../data/ofertas';
+import { ENLACES } from '../../data/enlaces';
 
 export const prerender = false;
 
 // Cuenta el clic y redirige a la web de la compañía (o al enlace de afiliado, si existe).
 // No guarda IP ni identificadores: solo oferta, página de origen y país.
 export const GET: APIRoute = async ({ params, url, request }) => {
-  const oferta = OFERTAS.find((o) => o.id === params.id);
+  const tarifa = OFERTAS.find((o) => o.id === params.id);
+  const enlace = tarifa ? undefined : ENLACES.find((e) => e.id === params.id);
+  const oferta = tarifa ?? (enlace && { ...enlace, compania: enlace.nombre });
   if (!oferta) return new Response('Not found', { status: 404 });
 
   const destino = oferta.afiliado?.url ?? oferta.url;

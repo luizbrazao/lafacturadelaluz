@@ -1,0 +1,61 @@
+---
+import { ENLACES, EJEMPLOS_MUDANZA } from '../data/enlaces';
+import { salida } from '../lib/salida';
+
+interface Props {
+  de: string; // ruta de la página, para contar el clic
+}
+const { de } = Astro.props;
+const anyvan = ENLACES.find((e) => e.id === 'anyvan-mudanza')!;
+const link = salida(anyvan, de);
+const fecha = new Date(EJEMPLOS_MUDANZA.consultado).toLocaleDateString('es-ES', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+});
+---
+<section class="mudanza">
+  <h2>¿Te mudas? Lo que cuesta la mudanza</h2>
+  <p>
+    La luz es solo una parte. El transporte suele ser el gasto más grande de cambiar de casa, y depende sobre todo de cuántas
+    cosas llevas y de la distancia. Algunos ejemplos de trabajos publicados por AnyVan:
+  </p>
+  <ul>
+    {EJEMPLOS_MUDANZA.casos.map((c) => (
+      <li>{c.ruta}: {c.precio} €</li>
+    ))}
+  </ul>
+  <p class="muted">
+    Ejemplos publicados en <a href={EJEMPLOS_MUDANZA.fuente} rel="nofollow noopener">anyvan.com/es</a> (consultado el {fecha}).
+    No son tarifas: tu precio será distinto. Compara también con empresas de tu zona.
+  </p>
+  <p>
+    <a class="cta" href={link.href} rel={link.rel}>Calcula el precio de tu mudanza en AnyVan</a>
+    {anyvan.afiliado && <span class="tag">Patrocinado</span>}
+  </p>
+</section>
+<style>
+  .mudanza {
+    margin: 2.5rem 0;
+    padding: 1.25rem 1.4rem;
+    background: #fff;
+    border-left: 4px solid var(--slate);
+  }
+  .mudanza h2 {
+    margin-top: 0;
+  }
+  .muted {
+    color: var(--slate);
+    font-size: 0.92rem;
+  }
+  .tag {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid var(--slate);
+    border-radius: 3px;
+  }
+  .cta {
+    font-weight: 700;
+  }
+</style>

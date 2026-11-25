@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import EligeCompania from '../components/EligeCompania.astro';
+import Mudanza from '../components/Mudanza.astro';
 
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
@@ -41,6 +42,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
       titulo="Aprovecha para elegir compañía"
       intro="Cambiar de titular y de compañía a la vez no cuesta más. Las más baratas este mes para un hogar típico:"
     />
+
+    <Mudanza de="/cambio-titular-luz" />
 
     <h2>Qué documentos necesitas</h2>
     <ul>

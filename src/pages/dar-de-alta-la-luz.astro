@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import EligeCompania from '../components/EligeCompania.astro';
+import Mudanza from '../components/Mudanza.astro';
 import { ACOMETIDA, costeAlta } from '../data/acometida';
 import { FISCALIDAD } from '../data/ofertas';
 import { eur } from '../lib/calculo';
@@ -106,6 +107,8 @@ const ejemplos = [3.45, 4.6, 5.75].map((kw) => ({ kw, nueva: costeAlta(kw, 'nuev
       titulo="Qué compañía elegir"
       intro="Es el mejor momento para elegir bien: vas a firmar un contrato nuevo de todas formas. Las más baratas este mes para un hogar típico:"
     />
+
+    <Mudanza de="/dar-de-alta-la-luz" />
 
     <h2>Preguntas frecuentes</h2>
     <h3>¿Se puede dar de alta la luz sin boletín?</h3>
