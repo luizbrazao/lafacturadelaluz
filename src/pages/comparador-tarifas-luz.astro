@@ -110,7 +110,7 @@ const data = {
       const kw = Number(fd.get('kw')) || 0;
       const c = { punta: Number(fd.get('punta')) || 0, llano: Number(fd.get('llano')) || 0, valle: Number(fd.get('valle')) || 0 };
       const rows: { titulo: string; compania: string; total: number; condiciones: string[]; url?: string; patrocinado?: boolean; pvpc?: boolean }[] =
-        data.ofertas.map((o: any) => ({
+        data.ofertas.filter((o: any) => !o.maxKwhAno || c.punta + c.llano + c.valle < o.maxKwhAno).map((o: any) => ({
           titulo: o.nombre,
           compania: o.compania,
           total: coste(o.energia, o.potencia, o.cuotaMensual ?? 0, kw, c),

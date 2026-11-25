@@ -12,6 +12,7 @@ export interface Oferta {
   energia: { unico: number } | { punta: number; llano: number; valle: number };
   potencia: { p1: number; p2: number };
   cuotaMensual?: number; // € al mes, si la hay
+  maxKwhAno?: number; // la oferta solo vale por debajo de este consumo anual
   condiciones: string[]; // lo que hay que saber antes de contratar
   url: string; // página oficial de la tarifa
   afiliado?: { url: string; red: string }; // solo si hay acuerdo activo: se marca «Patrocinado»
@@ -127,6 +128,7 @@ export const OFERTAS: Oferta[] = [
     nombre: 'A tu Aire Luz Siempre',
     energia: { unico: 0.1199 },
     potencia: { p1: 0.094493, p2: 0.094493 },
+    maxKwhAno: 4000,
     condiciones: ['Precio para consumos de menos de 4.000 kWh al año', 'Sin permanencia'],
     url: 'https://www.totalenergies.es/es/hogares/tarifas-luz/a-tu-aire-siempre',
     consultado: '2026-11-25',
