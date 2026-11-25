@@ -5,4 +5,5 @@ export default defineConfig({
   site: 'https://lafacturadelaluz.es',
   adapter: cloudflare(),
   trailingSlash: 'never',
+  build: { format: 'file' },
 });
