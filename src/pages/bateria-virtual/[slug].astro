@@ -1,0 +1,137 @@
+---
+import Base from '../../layouts/Base.astro';
+import { BATERIAS, type OfertaBV } from '../../data/bateria-virtual';
+import { salida } from '../../lib/salida';
+import { eur } from '../../lib/calculo';
+
+export function getStaticPaths() {
+  return BATERIAS.map((b) => ({ params: { slug: b.slug }, props: { b } }));
+}
+
+const { b } = Astro.props as { b: OfertaBV };
+const fecha = (d: string, opts: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat('es-ES', { ...opts, timeZone: 'UTC' }).format(new Date(`${d}T12:00:00Z`));
+const mes = fecha(b.consultado, { month: 'long', year: 'numeric' });
+const dia = fecha(b.consultado, { day: 'numeric', month: 'long', year: 'numeric' });
+const kwh = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+const eur2 = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const l = salida({ id: `bv-${b.slug}`, afiliado: b.afiliado }, `/bateria-virtual/${b.slug}`);
+
+// Ejemplo con 2.000 kWh de excedentes al año, comparado con el resto de baterías virtuales.
+const EJEMPLO = 2000;
+const neto = (o: OfertaBV) => EJEMPLO * o.excedente - o.cuotaMes * 12;
+const otras = BATERIAS.filter((o) => o.bateria && o.slug !== b.slug)
+  .map((o) => ({ o, n: neto(o) }))
+  .sort((x, y) => y.n - x.n);
+const ranking = BATERIAS.filter((o) => o.bateria).map((o) => ({ o, n: neto(o) })).sort((x, y) => y.n - x.n);
+const puesto = ranking.findIndex((r) => r.o.slug === b.slug) + 1;
+
+const titulo = b.bateria
+  ? `Batería virtual de ${b.compania} (${b.nombreBateria}): precio y condiciones en ${mes}`
+  : `¿Tiene ${b.compania} batería virtual? Excedentes y condiciones en ${mes}`;
+---
+<Base
+  title={`${titulo} | La factura de la luz`}
+  description={
+    b.bateria
+      ? `${b.nombreBateria} de ${b.compania}: excedentes a ${kwh(b.excedente)} €/kWh, cuota ${b.cuotaMes === 0 ? 'gratis' : `${eur2(b.cuotaMes)} €/mes`}, caducidad, límites y cuánto te queda frente a otras compañías.`
+      : `${b.compania} paga los excedentes a ${kwh(b.excedente)} €/kWh pero no tiene batería virtual. Qué significa y qué alternativas hay.`
+  }
+>
+  <article class="prose">
+    <h1>{b.bateria ? `Batería virtual de ${b.compania}` : `¿Tiene ${b.compania} batería virtual?`}</h1>
+    <p class="lead">
+      {b.bateria
+        ? `${b.nombreBateria} es la batería virtual de ${b.compania}. Se contrata con la tarifa ${b.tarifa} y paga los excedentes a ${kwh(b.excedente)} €/kWh sin impuestos.`
+        : `No. ${b.compania} compensa los excedentes a ${kwh(b.excedente)} €/kWh con su tarifa ${b.tarifa}, pero no guarda saldo: lo que no se descuenta en el mes se pierde.`}
+    </p>
+
+    <h2>Condiciones ({mes})</h2>
+    <table>
+      <tbody>
+        <tr><th scope="row">Precio del excedente</th><td>{kwh(b.excedente)} €/kWh sin impuestos{b.excedenteNota && <><br /><small>{b.excedenteNota}</small></>}</td></tr>
+        <tr><th scope="row">Cuota</th><td>{b.cuotaMes === 0 ? 'Gratis' : `${eur2(b.cuotaMes)} €/mes sin impuestos`}{b.cuotaNota && <><br /><small>{b.cuotaNota}</small></>}</td></tr>
+        <tr><th scope="row">Caducidad del saldo</th><td>{b.caducidad}</td></tr>
+        <tr><th scope="row">Se aplica a</th><td>{b.aplica}</td></tr>
+        <tr><th scope="row">Compartir</th><td>{b.compartir}</td></tr>
+        <tr><th scope="row">Límites</th><td>{b.limites}</td></tr>
+        <tr><th scope="row">Energía de la tarifa</th><td>{b.energia}</td></tr>
+        <tr><th scope="row">Potencia</th><td>{b.potencia}</td></tr>
+        {b.otras.length > 0 && <tr><th scope="row">Otras</th><td>{b.otras.join(' ')}</td></tr>}
+      </tbody>
+    </table>
+    <p>
+      <a class="cta" href={l.href} rel={l.rel}>Ver la oferta en la web de {b.compania}</a>
+      {b.afiliado && <span class="tag">Patrocinado</span>}
+    </p>
+
+    {b.bateria ? (
+      <>
+        <h2>Cuánto te queda frente a otras compañías</h2>
+        <p>
+          Con {EJEMPLO.toLocaleString('es-ES', { useGrouping: 'always' } as Intl.NumberFormatOptions)} kWh de excedentes al año, {b.compania} te da {eur(EJEMPLO * b.excedente)} en
+          saldo{b.cuotaMes > 0 && <> y cobra {eur(b.cuotaMes * 12)} de cuota</>}: te quedan {eur(neto(b))}. Es la{' '}
+          {puesto}.ª de {ranking.length} baterías virtuales que comparamos.
+        </p>
+        <table>
+          <thead><tr><th scope="col">Compañía</th><th scope="col">Excedente</th><th scope="col">Cuota al año</th><th scope="col">Te queda</th></tr></thead>
+          <tbody>
+            {ranking.map((r) => (
+              <tr>
+                <th scope="row">{r.o.slug === b.slug ? <strong>{r.o.compania}</strong> : <a href={`/bateria-virtual/${r.o.slug}`}>{r.o.compania}</a>}</th>
+                <td>{kwh(r.o.excedente)} €/kWh</td>
+                <td>{r.o.cuotaMes ? eur(r.o.cuotaMes * 12) : '0 €'}</td>
+                <td>{eur(r.n)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p class="help">
+          Sin impuestos y suponiendo que usas todo el saldo antes de que caduque. Pero el precio de la energía que compras
+          suele pesar más que el del excedente: compáralo con tu consumo en el <a href="/comparador-tarifas-luz">comparador</a>.
+          Con otra cantidad de excedentes, usa la <a href="/bateria-virtual">calculadora</a>.
+        </p>
+      </>
+    ) : (
+      <>
+        <h2>Qué significa no tener batería virtual</h2>
+        <p>
+          Con la compensación simplificada, el valor de tus excedentes se descuenta del coste de la energía que compras ese
+          mes, sin pasar de ese coste. En los meses con mucho sol y poco consumo, parte del excedente no se aprovecha. Si eso
+          te pasa, las compañías con batería virtual guardan ese valor como saldo:
+        </p>
+        <ul>
+          {otras.map(({ o }) => (
+            <li><a href={`/bateria-virtual/${o.slug}`}>{o.compania}</a>: {kwh(o.excedente)} €/kWh, {o.cuotaMes === 0 ? 'gratis' : `${eur2(o.cuotaMes)} €/mes`}.</li>
+          ))}
+        </ul>
+        <p>Comparativa completa y calculadora en <a href="/bateria-virtual">batería virtual: cuál te conviene</a>.</p>
+      </>
+    )}
+
+    <p class="source">
+      Datos de la web oficial de {b.compania}, consultados el {dia}:{' '}
+      {b.fuentes.map((f, i) => (
+        <><a href={f.url} rel="nofollow noopener">{f.texto}</a>{i < b.fuentes.length - 1 ? '; ' : '.'}</>
+      ))}{' '}
+      Las condiciones cambian a menudo: revísalas antes de contratar.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .help {
+    color: var(--slate);
+    font-size: 0.9rem;
+  }
+  .cta {
+    font-weight: 700;
+  }
+  .tag {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid var(--slate);
+    border-radius: 3px;
+  }
+</style>

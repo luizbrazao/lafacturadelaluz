@@ -1,0 +1,220 @@
+---
+import Base from '../layouts/Base.astro';
+import { BATERIAS } from '../data/bateria-virtual';
+import { salida } from '../lib/salida';
+
+const conBateria = BATERIAS.filter((b) => b.bateria);
+const sinBateria = BATERIAS.filter((b) => !b.bateria);
+const consultado = BATERIAS.map((b) => b.consultado).sort().at(-1)!;
+const fecha = (d: string, opts: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat('es-ES', { ...opts, timeZone: 'UTC' }).format(new Date(`${d}T12:00:00Z`));
+const mes = fecha(consultado, { month: 'long', year: 'numeric' });
+const dia = fecha(consultado, { day: 'numeric', month: 'long', year: 'numeric' });
+const kwh = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+const eur2 = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const masAlto = Math.max(...conBateria.map((b) => b.excedente));
+const datos = conBateria.map((b) => ({ slug: b.slug, compania: b.compania, nombre: b.nombreBateria, excedente: b.excedente, cuotaMes: b.cuotaMes }));
+---
+<Base
+  title={`Batería virtual: cuál conviene en ${mes} (comparativa con calculadora) | La factura de la luz`}
+  description="Comparamos la batería virtual de Octopus, Iberdrola, Repsol, Endesa y Naturgy: precio del excedente, cuota, caducidad y a qué parte de la factura se aplica. Con calculadora."
+>
+  <article class="prose">
+    <h1>Batería virtual: cuál te conviene</h1>
+    <p class="lead">
+      La batería virtual guarda en euros el valor de los excedentes de tus placas que no puedes descontar en la factura del
+      mes, para usarlo después. Comparamos las de las grandes compañías con sus condiciones de {mes}.
+    </p>
+
+    <h2>Cómo funciona</h2>
+    <p>
+      Con la compensación simplificada de excedentes (Real Decreto 244/2019), la energía que viertes a la red se descuenta
+      del coste de la energía que compras ese mismo mes. Hay un límite: el descuento no puede superar ese coste. Lo que
+      sobra se pierde.
+    </p>
+    <p>
+      La batería virtual evita esa pérdida. Lo que no cabe en la factura del mes se guarda como saldo y se aplica en las
+      siguientes, en algunas compañías también a la potencia o a otra vivienda. No almacena kWh: guarda euros, al precio de
+      excedente de tu tarifa.
+    </p>
+    <p>
+      <strong>Solo te sirve si tus excedentes valen más que la energía que compras a la red en algunos meses</strong>, algo
+      habitual en verano. Si nunca pasa, la compensación normal ya te descuenta todo.
+    </p>
+
+    <h2>Calculadora: cuánto te dan tus excedentes en cada compañía</h2>
+    <form id="calc" class="calc" onsubmit="return false">
+      <label><span>Excedentes al año (kWh)</span><input name="exc" type="number" inputmode="numeric" min="0" max="50000" step="50" value="2000" /></label>
+    </form>
+    <table id="tabla-calc">
+      <thead><tr><th scope="col">Compañía</th><th scope="col">Valor de tus excedentes</th><th scope="col">Cuota al año</th><th scope="col">Te queda</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="help">
+      Sin impuestos. Suponemos que usas todo el saldo antes de que caduque. Los excedentes al año aparecen en tus facturas
+      como energía vertida o excedentaria, o en la app de tu inversor. Como referencia, Octopus usa en su web el ejemplo
+      de una vivienda media con 3.000 kWh de excedentes al año; depende mucho del tamaño de la instalación y de tu consumo.
+    </p>
+
+    <h2>Lo que más pesa es el precio de la luz que compras</h2>
+    <p>
+      El precio del excedente llama la atención, pero casi siempre importa más el precio de la energía que compras de noche
+      y en invierno. Un ejemplo: si compras 3.000 kWh al año a la red, 2 céntimos de diferencia en el kWh son 60 € al año.
+      Si viertes 2.000 kWh, 1 céntimo de diferencia en el excedente son 20 €. Por eso la tabla de abajo incluye el precio de
+      la energía de cada tarifa. Para calcularlo con tu consumo, usa el <a href="/comparador-tarifas-luz">comparador</a>.
+    </p>
+
+    <h2>Comparativa de {mes}</h2>
+    <div class="tabla-ancha">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Compañía</th>
+            <th scope="col">Excedente</th>
+            <th scope="col">Cuota</th>
+            <th scope="col">Caduca</th>
+            <th scope="col">Se aplica a</th>
+            <th scope="col">Compartir</th>
+            <th scope="col">Energía de la tarifa</th>
+          </tr>
+        </thead>
+        <tbody>
+          {conBateria.map((b) => {
+            const l = salida({ id: `bv-${b.slug}`, afiliado: b.afiliado }, '/bateria-virtual');
+            return (
+              <tr>
+                <th scope="row">
+                  <a href={`/bateria-virtual/${b.slug}`}>{b.compania}</a>
+                  <br /><small>{b.nombreBateria} · {b.tarifa}</small>
+                  <br /><a href={l.href} rel={l.rel}>web oficial</a>
+                  {b.afiliado && <span class="tag">Patrocinado</span>}
+                </th>
+                <td>{kwh(b.excedente)} €/kWh{b.excedente === masAlto && <><br /><small>el más alto</small></>}</td>
+                <td>{b.cuotaMes === 0 ? 'Gratis' : `${eur2(b.cuotaMes)} €/mes`}</td>
+                <td>{b.caducidad}</td>
+                <td>{b.aplica}</td>
+                <td>{b.compartir}</td>
+                <td>{b.energia}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+    <p class="help">Precios sin impuestos. Notas de cada compañía:</p>
+    <ul class="help">
+      {conBateria.filter((b) => b.excedenteNota || b.cuotaNota).map((b) => (
+        <li><strong>{b.compania}:</strong> {[b.excedenteNota, b.cuotaNota].filter(Boolean).join(' ')}</li>
+      ))}
+    </ul>
+
+    {sinBateria.length > 0 && (
+      <>
+        <h2>Compañías sin batería virtual</h2>
+        <p>
+          {sinBateria.map((b) => (
+            <>
+              <a href={`/bateria-virtual/${b.slug}`}>{b.compania}</a> paga {kwh(b.excedente)} €/kWh por los excedentes con
+              su tarifa {b.tarifa} ({b.energia}), pero no tiene batería virtual: {b.limites.toLowerCase()}{' '}
+            </>
+          ))}
+          Puede salirte bien si tus excedentes de cada mes valen menos que la energía que compras.
+        </p>
+      </>
+    )}
+
+    <h2>Antes de elegir</h2>
+    <ul>
+      <li>Mira cuánto viertes cada mes, no solo al año: el saldo solo se genera en los meses en que el excedente supera tu compra de energía.</li>
+      <li>Comprueba si el saldo caduca y si puedes usarlo en la potencia o en otra vivienda.</li>
+      <li>Ten en cuenta la cuota: con pocos excedentes, una batería de pago puede no compensar.</li>
+      <li>Los precios de excedente cambian a menudo. Revisa las condiciones vigentes antes de firmar.</li>
+    </ul>
+
+    <p class="source">
+      Datos de la web oficial de cada compañía, consultados el {dia}. Fuentes:{' '}
+      {BATERIAS.flatMap((b) => b.fuentes.map((f) => ({ ...f, c: b.compania }))).map((f, i, arr) => (
+        <><a href={f.url} rel="nofollow noopener">{f.c}: {f.texto}</a>{i < arr.length - 1 ? '; ' : '.'}</>
+      ))}{' '}
+      Esta web puede recibir una comisión de algunas compañías; no cambia el orden ni los cálculos.{' '}
+      <a href="/como-ganamos-dinero">Cómo ganamos dinero</a>.
+    </p>
+  </article>
+
+  <script define:vars={{ datos }}>
+    const form = document.getElementById('calc');
+    const tbody = document.querySelector('#tabla-calc tbody');
+    const eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' });
+    function calc() {
+      const exc = Math.max(0, Number(new FormData(form).get('exc')) || 0);
+      const filas = datos
+        .map((d) => ({ ...d, valor: exc * d.excedente, cuota: d.cuotaMes * 12 }))
+        .map((d) => ({ ...d, neto: d.valor - d.cuota }))
+        .sort((a, b) => b.neto - a.neto);
+      tbody.replaceChildren(
+        ...filas.map((d) => {
+          const tr = document.createElement('tr');
+          const th = document.createElement('th');
+          th.scope = 'row';
+          const a = document.createElement('a');
+          a.href = `/bateria-virtual/${d.slug}`;
+          a.textContent = d.compania;
+          th.append(a);
+          const td = (t) => { const c = document.createElement('td'); c.textContent = t; return c; };
+          tr.append(th, td(eur.format(d.valor)), td(d.cuota ? `− ${eur.format(d.cuota)}` : '0 €'), td(eur.format(d.neto)));
+          return tr;
+        })
+      );
+    }
+    form.addEventListener('input', calc);
+    calc();
+  </script>
+</Base>
+
+<style>
+  .calc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
+    padding: 1.25rem 0;
+    border-block: 2px solid var(--ink);
+    max-width: none;
+  }
+  .calc label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+    color: var(--slate);
+  }
+  .calc input {
+    font: inherit;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--ink);
+    width: 9rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #b9bfb6;
+    border-radius: 4px;
+    background: #fff;
+  }
+  .help {
+    color: var(--slate);
+    font-size: 0.9rem;
+  }
+  .tabla-ancha {
+    overflow-x: auto;
+    max-width: none;
+  }
+  .tabla-ancha table {
+    font-size: 0.9rem;
+    min-width: 52rem;
+  }
+  .tag {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid var(--slate);
+    border-radius: 3px;
+  }
+</style>

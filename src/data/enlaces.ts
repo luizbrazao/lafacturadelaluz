@@ -1,3 +1,5 @@
+import { BATERIAS } from './bateria-virtual';
+
 // Enlaces de salida que no son tarifas de luz (por ejemplo, servicios para quien se muda).
 // Pasan por /ir/<id> igual que las ofertas, para contar el clic.
 
@@ -17,6 +19,8 @@ export const ENLACES: Enlace[] = [
     url: 'https://www.anyvan.com/es/precios-instantaneos/mudanzas/ruta',
     consultado: '2026-11-25',
   },
+  // Ofertas de batería virtual: /ir/bv-<slug>
+  ...BATERIAS.map((b) => ({ id: `bv-${b.slug}`, nombre: b.compania, url: b.url, afiliado: b.afiliado, consultado: b.consultado })),
 ];
 
 // Precios de ejemplo publicados por AnyVan en www.anyvan.com/es (consultado el 25/11/2026).
