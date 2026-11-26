@@ -1,20 +1,44 @@
 :root {
+  /* Tokens del sistema de diseño (dirección «Reloj clara»). Ver redesign/README.md */
   --paper: #f6f7f4;
+  --surface: #ffffff;
   --ink: #1c2228;
   --slate: #5e6873;
   --rule: #d9ddd6;
-  --bulb: #f5b700;
-  /* Escala de precio del día: de más barato (0) a más caro (4) */
-  --l0: #b9e4d6;
-  --l1: #7fc8b2;
-  --l2: #b7a3c9;
-  --l3: #85609f;
-  --l4: #4a2a63;
+  --rule-strong: #7b847d;
+  /* Escala de precio del día: de más barato (0) a más caro (4). Todos superan 3:1 sobre --paper. */
+  --scale-0: #3f9a84;
+  --scale-1: #2c7f76;
+  --scale-2: #6f5a9a;
+  --scale-3: #5a3a80;
+  --scale-4: #3c2054;
+  --now-bg: #fff6d1;
+  --accent: #5a3a80;
+  --action: #1c2228;
+  --action-ink: #f6f7f4;
+  --focus: #1c2228;
+  --error: #a3123f;
+  --error-bg: #fbe9ee;
+  --ok: #256b63;
+  --ok-bg: #e6f2ee;
+  --radius-bar: 4px;
+  --radius-field: 6px;
+  --radius-pill: 22px;
+  --touch: 44px;
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-sans: 'Figtree Variable', system-ui, sans-serif;
+  /* Nombres anteriores, para las páginas que aún los usan. */
+  --bulb: var(--rule-strong);
+  --l0: var(--scale-0);
+  --l1: var(--scale-1);
+  --l2: var(--scale-2);
+  --l3: var(--scale-3);
+  --l4: var(--scale-4);
   --measure: 66ch;
-  --wide: 68rem;
-  font-family: 'Schibsted Grotesk Variable', system-ui, sans-serif;
+  --wide: 70rem;
+  font-family: var(--font-sans);
   font-size: 106.25%; /* 17px */
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--ink);
   background: var(--paper);
 }
@@ -37,11 +61,12 @@ a {
 
 a:hover {
   text-decoration-thickness: 2px;
+  color: var(--scale-4);
 }
 
 :focus-visible {
-  outline: 3px solid var(--bulb);
-  outline-offset: 2px;
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
 }
 
 .skip {
@@ -67,33 +92,109 @@ main,
 .site-header {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 2rem;
-  align-items: baseline;
+  gap: 0.25rem 2rem;
+  align-items: center;
   justify-content: space-between;
-  padding-block: 1.25rem;
+  padding-block: 1rem;
 }
 
 .brand {
-  font-weight: 800;
-  font-size: 1.05rem;
-  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: var(--touch);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
   text-decoration: none;
 }
+.brand-mark {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  flex: none;
+}
+.brand-mark::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: 3px;
+  height: 9px;
+  margin-left: -1.5px;
+  background: var(--accent);
+  transform-origin: 50% 100%;
+  transform: rotate(315deg);
+}
 
-.site-header nav {
+.site-nav ul {
   display: flex;
-  gap: 1.25rem;
+  gap: 1.65rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
-
-.site-header nav a {
+.site-nav li {
+  max-width: none;
+}
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
   text-decoration: none;
-  color: var(--slate);
 }
-
-.site-header nav a[aria-current='page'] {
-  color: var(--ink);
+.site-nav a:hover {
+  text-decoration: underline;
+}
+.site-nav a[aria-current='page'] {
+  font-weight: 700;
   text-decoration: underline;
   text-decoration-thickness: 2px;
+  text-underline-offset: 0.35em;
+}
+.site-nav summary {
+  display: none;
+}
+@media (max-width: 767px) {
+  .site-nav summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch);
+    padding: 0 1rem;
+    border: 1px solid var(--ink);
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+  .site-nav summary::-webkit-details-marker {
+    display: none;
+  }
+  .site-header {
+    position: relative;
+  }
+  .site-header nav {
+    flex-basis: 100%;
+  }
+  .site-nav summary {
+    position: absolute;
+    top: 1rem;
+    right: clamp(1rem, 4vw, 2.5rem);
+  }
+  .site-nav ul {
+    flex-direction: column;
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    margin-top: 0.25rem;
+  }
+  .site-nav li {
+    border-bottom: 1px solid var(--rule);
+  }
+  .site-nav a {
+    width: 100%;
+  }
 }
 
 main {
@@ -103,9 +204,51 @@ main {
 h1,
 h2,
 h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
   line-height: 1.1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   margin: 0;
+}
+
+/* Botón principal: una sola acción por fila. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch);
+  padding: 0 1.2rem;
+  background: var(--action);
+  color: var(--action-ink);
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.btn:hover {
+  background: var(--scale-4);
+  color: var(--action-ink);
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0.1rem 0.6rem;
+  border-radius: var(--radius-pill);
+  color: var(--ok);
+  background: var(--ok-bg);
+  white-space: nowrap;
+}
+
+/* Tablas anchas: se desplazan dentro de su caja, no la página. */
+.table-scroll {
+  overflow-x: auto;
+  border-right: 1px solid var(--rule);
 }
 
 h2 {
@@ -128,8 +271,13 @@ li {
 
 .site-footer nav {
   display: flex;
-  gap: 1.25rem;
-  margin-top: 1rem;
+  flex-wrap: wrap;
+  gap: 0 1.25rem;
+  margin-top: 0.75rem;
+}
+.site-footer nav a {
+  display: inline-block;
+  padding: 0.5rem 0;
 }
 
 /* Páginas de texto (legales, explicaciones) */
@@ -137,7 +285,7 @@ li {
   max-width: var(--measure);
 }
 .prose h1 {
-  font-size: clamp(2rem, 5vw, 2.8rem);
+  font-size: clamp(1.9rem, 5vw, 2.6rem);
   margin: 2rem 0 1.5rem;
 }
 .prose h2 {
@@ -146,7 +294,7 @@ li {
   margin-bottom: 0.5rem;
 }
 .pending {
-  background: #fff3c4;
+  background: var(--now-bg);
   padding: 0 0.25em;
 }
 
@@ -190,9 +338,47 @@ li {
   font-size: 0.88rem;
   margin-top: 2.5rem;
 }
-.site-footer .guias {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  margin-top: 1rem;
+
+
+/* Índice lateral de las páginas de texto (lo crea Base.astro en pantallas anchas). */
+main {
+  position: relative;
+}
+.indice {
+  position: absolute;
+  bottom: 4rem;
+}
+.indice nav {
+  position: sticky;
+  top: 1.5rem;
+  padding-left: 1.25rem;
+  border-left: 1px solid var(--rule);
+  font-size: 0.9rem;
+}
+.indice p {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+}
+.indice ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.indice li {
+  max-width: none;
+}
+.indice a {
+  display: block;
+  padding: 0.4rem 0;
+  color: var(--slate);
+  text-decoration: none;
+}
+.indice a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+@media (max-width: 1099px) {
+  .indice {
+    display: none;
+  }
 }

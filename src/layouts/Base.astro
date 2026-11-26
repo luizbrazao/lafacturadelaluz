@@ -1,5 +1,6 @@
 ---
-import '@fontsource-variable/schibsted-grotesk';
+import '@fontsource/bricolage-grotesque/latin-700.css';
+import '@fontsource-variable/figtree';
 import '../styles/global.css';
 
 interface Props {
@@ -13,7 +14,8 @@ const path = Astro.url.pathname;
 const nav = [
   { href: '/', label: 'Precio hoy' },
   { href: '/precio-luz-manana', label: 'Precio mañana' },
-  { href: '/comparador-tarifas-luz', label: 'Comparador' },
+  { href: '/comparador-tarifas-luz', label: 'Comparar tarifas' },
+  { href: '#guias', label: 'Guías' },
 ];
 ---
 <!doctype html>
@@ -29,28 +31,86 @@ const nav = [
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:locale" content="es_ES" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="La Factura de la Luz" />
+    <meta property="og:image" content={new URL('/og.png', Astro.site).href} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="La Factura de la Luz: el precio de la luz de hoy, hora a hora, en un reloj de 24 horas" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#F6F7F4" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
   <body>
     <a class="skip" href="#main">Saltar al contenido</a>
     <header class="site-header">
-      <a class="brand" href="/">la factura de la luz</a>
+      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>La Factura de la Luz</a>
       <nav aria-label="Principal">
-        {nav.map((item) => (
-          <a href={item.href} aria-current={path === item.href ? 'page' : undefined}>{item.label}</a>
-        ))}
+        <details class="site-nav" open>
+          <summary>Menú</summary>
+          <ul>
+            {nav.map((item) => (
+              <li><a href={item.href} aria-current={path === item.href ? 'page' : undefined}>{item.label}</a></li>
+            ))}
+          </ul>
+        </details>
       </nav>
+      <script is:inline>
+        // En móvil el menú empieza cerrado; sin JavaScript queda abierto y usable.
+        if (window.matchMedia('(max-width: 767px)').matches) document.querySelector('.site-nav').removeAttribute('open');
+      </script>
     </header>
     <main id="main">
       <slot />
     </main>
+    <script is:inline>
+      // Índice lateral en páginas de texto largas, solo en pantallas anchas. Sin JavaScript la página es la de siempre.
+      (function () {
+        var art = document.querySelector('main > article.prose');
+        if (!art) return;
+        var hs = art.querySelectorAll('h2');
+        if (hs.length < 3) return;
+        var main = art.parentElement;
+        var aside = document.createElement('aside');
+        aside.className = 'indice';
+        var nav = document.createElement('nav');
+        nav.setAttribute('aria-label', 'En esta página');
+        var t = document.createElement('p');
+        t.textContent = 'En esta página';
+        var ul = document.createElement('ul');
+        hs.forEach(function (h, i) {
+          if (!h.id) {
+            h.id = (h.textContent || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'seccion-' + i;
+          }
+          var li = document.createElement('li');
+          var a = document.createElement('a');
+          a.href = '#' + h.id;
+          a.textContent = h.textContent;
+          li.appendChild(a);
+          ul.appendChild(li);
+        });
+        nav.appendChild(t);
+        nav.appendChild(ul);
+        aside.appendChild(nav);
+        main.appendChild(aside);
+        function place() {
+          var left = art.offsetLeft + art.offsetWidth + 72;
+          var room = main.clientWidth - left - parseFloat(getComputedStyle(main).paddingRight);
+          aside.hidden = room < 200;
+          aside.style.left = left + 'px';
+          aside.style.width = Math.min(room, 300) + 'px';
+          aside.style.top = hs[0].offsetTop + 'px';
+        }
+        place();
+        window.addEventListener('resize', place);
+      })();
+    </script>
     <footer class="site-footer">
       <p>
         Esta web puede recibir una comisión si contratas una tarifa desde un enlace marcado como patrocinado. No cambia el
         precio que pagas ni el orden de los resultados. <a href="/como-ganamos-dinero">Cómo ganamos dinero</a>.
       </p>
-      <nav class="guias" aria-label="Guías">
+      <nav class="guias" id="guias" aria-label="Guías">
         <a href="/compania-luz-mas-barata">Compañía de luz más barata</a>
         <a href="/consumo">Consumo de electrodomésticos</a>
         <a href="/dar-de-alta-la-luz">Dar de alta la luz</a>

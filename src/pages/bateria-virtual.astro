@@ -65,7 +65,8 @@ const datos = conBateria.map((b) => ({ slug: b.slug, compania: b.compania, nombr
     </p>
 
     <h2>Comparativa de {mes}</h2>
-    <div class="tabla-ancha">
+    <p class="desliza">Desliza la tabla hacia la izquierda para ver todas las columnas.</p>
+    <div class="tabla-ancha" tabindex="0" role="region" aria-label="Comparativa de baterías virtuales">
       <table>
         <thead>
           <tr>
@@ -194,9 +195,9 @@ const datos = conBateria.map((b) => ({ slug: b.slug, compania: b.compania, nombr
     color: var(--ink);
     width: 9rem;
     padding: 0.4rem 0.6rem;
-    border: 1px solid #b9bfb6;
+    border: 1px solid var(--rule-strong);
     border-radius: 4px;
-    background: #fff;
+    background: var(--surface);
   }
   .help {
     color: var(--slate);
@@ -205,6 +206,27 @@ const datos = conBateria.map((b) => ({ slug: b.slug, compania: b.compania, nombr
   .tabla-ancha {
     overflow-x: auto;
     max-width: none;
+    border-right: 1px solid var(--rule);
+  }
+  /* Primera columna fija: al desplazar la tabla siempre se ve de qué compañía es cada fila. */
+  .tabla-ancha th:first-child,
+  .tabla-ancha td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--paper);
+    box-shadow: 1px 0 0 var(--rule);
+    max-width: 9.5rem;
+  }
+  .desliza {
+    display: none;
+    color: var(--slate);
+    font-size: 0.9rem;
+  }
+  @media (max-width: 900px) {
+    .desliza {
+      display: block;
+    }
   }
   .tabla-ancha table {
     font-size: 0.9rem;

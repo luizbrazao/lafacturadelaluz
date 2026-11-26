@@ -179,11 +179,9 @@ const data = {
     padding-top: clamp(1.5rem, 5vw, 3rem);
   }
   h1 {
-    font-size: clamp(2.2rem, 6vw, 4rem);
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 1;
-    max-width: 13ch;
+    font-size: clamp(2rem, 5.4vw, 2.75rem);
+    line-height: 1.05;
+    max-width: 16ch;
   }
   .lead {
     font-size: 1.15rem;
@@ -224,10 +222,11 @@ const data = {
     font-weight: 700;
     color: var(--ink);
     width: 7.5rem;
-    padding: 0.45rem 0.6rem;
-    border: 1px solid #b9bfb6;
-    border-radius: 4px;
-    background: #fff;
+    min-height: var(--touch);
+    padding: 0 0.6rem;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-field);
+    background: var(--surface);
   }
   .help {
     flex-basis: 100%;
@@ -250,7 +249,7 @@ const data = {
     display: grid;
     grid-template-columns: 2rem minmax(10rem, 1.4fr) minmax(8rem, 1fr) minmax(7rem, 0.8fr) minmax(10rem, 1.4fr) auto;
     gap: 0.5rem 1.25rem;
-    align-items: baseline;
+    align-items: center;
     padding: 1rem 0;
     border-bottom: 1px solid var(--rule);
     max-width: none;
@@ -258,14 +257,37 @@ const data = {
   .results :global(.row:first-child) {
     border-top: 1px solid var(--rule);
   }
-  .results :global(.row:first-child .year) {
-    color: #2f7d67;
+  .results :global(.row:first-child .diff) {
+    justify-self: start;
+    padding: 0.1rem 0.6rem;
+    border-radius: var(--radius-pill);
+    background: var(--ok-bg);
+    color: var(--ok);
+    font-weight: 600;
   }
   .results :global(.pvpc) {
-    background: linear-gradient(90deg, #efe9f4, transparent 70%);
+    background: var(--now-bg);
+  }
+  .results :global(.pvpc > :first-child) {
+    padding-left: 0.4rem;
+  }
+  .results :global(.act a) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch);
+    padding: 0 1.2rem;
+    background: var(--action);
+    color: var(--action-ink);
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .results :global(.act a:hover) {
+    background: var(--scale-4);
   }
   .results :global(.pos) {
-    font-weight: 800;
+    font-weight: 700;
     color: var(--slate);
   }
   .results :global(.name) {
@@ -283,9 +305,10 @@ const data = {
     flex-direction: column;
   }
   .results :global(.year) {
+    font-family: var(--font-display);
     font-size: 1.45rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    font-weight: 700;
+    line-height: 1.15;
   }
   .results :global(.cond) {
     margin: 0;
@@ -297,9 +320,13 @@ const data = {
   .results :global(.act) {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 0.25rem;
     font-weight: 600;
     white-space: nowrap;
+  }
+  .results :global(.row) {
+    align-items: center;
   }
   .results :global(.tag) {
     font-size: 0.75rem;
@@ -307,7 +334,7 @@ const data = {
     color: var(--slate);
   }
 
-  @media (max-width: 760px) {
+  @media (max-width: 920px) {
     .results :global(.row) {
       grid-template-columns: 1.5rem 1fr auto;
     }
