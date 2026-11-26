@@ -1,6 +1,6 @@
 ---
 import type { DayPrices } from '../lib/pvpc';
-import { cheapestWindow, fmtHour, fmtLongDate, fmtPrice, level } from '../lib/pvpc';
+import { TZ, cheapestWindow, fmtHour, fmtLongDate, fmtPrice, level } from '../lib/pvpc';
 
 interface Props {
   day: DayPrices;
@@ -15,78 +15,200 @@ const top = Math.max(...day.hours.map((h) => h.price));
 const lavadora = cheapestWindow(day, 2);
 const lavavajillas = cheapestWindow(day, 3);
 const verb = when === 'hoy' ? 'es' : 'será';
+const n = day.hours.length;
+
+// Hora actual dentro del día (solo «hoy»). La frase grande cambia con ella; el H1 no.
+const nowIdx = currentHour === undefined ? -1 : day.hours.findIndex((h) => h.hour === currentHour);
+const now = nowIdx >= 0 ? day.hours[nowIdx] : undefined;
+const minIdx = day.hours.indexOf(day.min);
+const rango = (h: number) => `${fmtHour(h)} a ${fmtHour(h + 1)}`;
+
+let frase = `La hora más barata ${verb} de ${rango(day.min.hour)}`;
+let apoyo = `${fmtPrice(day.min.price)} €/kWh en esa hora.`;
+if (now) {
+  const lvl = level(day, now.price);
+  const caras = [...day.hours].sort((a, b) => b.price - a.price);
+  const puestoCara = caras.indexOf(now);
+  const puestoBarata = baratas.indexOf(now);
+  const ordinal = ['la', 'la segunda', 'la tercera'];
+  const despues = day.hours.slice(nowIdx + 1);
+  const baja = despues.find((h) => level(day, h.price) < lvl);
+  const sube = despues.find((h) => level(day, h.price) > lvl);
+  const partes = [`Ahora, de ${rango(now.hour)}, está a ${fmtPrice(now.price)} €/kWh`];
+  if (nowIdx === minIdx) {
+    frase = `Son las ${fmtHour(now.hour)} y es la hora más barata de hoy`;
+  } else if (nowIdx < minIdx) {
+    // La mejor hora aún no ha llegado: se mantiene la respuesta de siempre.
+    apoyo = `${fmtPrice(day.min.price)} €/kWh en esa hora. ${partes[0]}.`;
+  } else {
+    frase = `Son las ${fmtHour(now.hour)} y la luz está ${lvl >= 3 ? 'cara' : lvl <= 1 ? 'barata' : 'a precio medio'}`;
+  }
+  if (nowIdx >= minIdx) {
+    let texto = `${fmtPrice(now.price)} €/kWh`;
+    if (puestoCara >= 0 && puestoCara < 3) texto += `, ${ordinal[puestoCara]} hora más cara de hoy`;
+    else if (puestoBarata >= 0 && puestoBarata < 3 && nowIdx !== minIdx) texto += `, ${ordinal[puestoBarata]} hora más barata de hoy`;
+    texto += '.';
+    if (lvl >= 2 && baja) texto += ` A las ${fmtHour(baja.hour)} baja a ${fmtPrice(baja.price)}.`;
+    else if (lvl < 2 && sube) texto += ` A las ${fmtHour(sube.hour)} sube a ${fmtPrice(sube.price)}.`;
+    apoyo = texto;
+  }
+}
+const pasada = now && nowIdx > minIdx;
+const consultado = new Intl.DateTimeFormat('es-ES', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+
+// Hora seleccionada al cargar: la actual o, si no la hay, la más barata.
+const selIdx = nowIdx >= 0 ? nowIdx : minIdx;
+const nota = (i: number) => {
+  if (nowIdx < 0) return i === minIdx ? 'La más barata' : day.hours[i] === day.max ? 'La más cara' : '';
+  const d = i - nowIdx;
+  return d === 0 ? 'Hora actual' : d < 0 ? `Ya pasó, hace ${-d} h` : `Dentro de ${d} h`;
+};
+const marca = (i: number) => (i === nowIdx ? 'ahora' : i === minIdx ? 'la más barata' : day.hours[i] === day.max ? 'la más cara' : '');
+const horas = day.hours.map((h, i) => ({
+  ...h,
+  i,
+  lvl: level(day, h.price),
+  v: h.price / top,
+  rango: rango(h.hour),
+  precio: fmtPrice(h.price),
+  nota: nota(i),
+  marca: marca(i),
+  pasada: nowIdx >= 0 && i < nowIdx,
+  etiqueta: `${rango(h.hour)}, ${fmtPrice(h.price)} euros por kilovatio hora`,
+}));
+const sel = horas[selIdx];
 ---
 <section class="hero">
-  <h1>Precio de la luz {when}{sujeto ? ` ${sujeto}` : ''}, <span class="date">{fmtLongDate(day.date)}</span></h1>
-  <p class="answer">
-    La hora más barata {verb} de {fmtHour(day.min.hour)} a {fmtHour(day.min.hour + 1)}
-  </p>
-  <p class="facts">
-    <span><strong>{fmtPrice(day.min.price)} €/kWh</strong> en esa hora.</span>
-    <span>La más cara: {fmtHour(day.max.hour)} a {fmtHour(day.max.hour + 1)}, {fmtPrice(day.max.price)} €/kWh.</span>
-    <span>Media del día: {fmtPrice(day.avg)} €/kWh.</span>
-  </p>
+  <div class="hero-text">
+    <h1>Precio de la luz {when}{sujeto ? ` ${sujeto}` : ''}, <span class="date">{fmtLongDate(day.date)}</span></h1>
+    <p class="answer">{frase}</p>
+    <p class="support">{apoyo}</p>
+    <p class="facts">
+      La más barata {pasada ? 'fue' : verb} de {rango(day.min.hour)}, a {fmtPrice(day.min.price)} €/kWh. La más cara, de{' '}
+      {rango(day.max.hour)}, a {fmtPrice(day.max.price)} €/kWh. Media del día: {fmtPrice(day.avg)} €/kWh. Datos de Red
+      Eléctrica, consultados a las {consultado}.
+    </p>
+  </div>
+
+  <figure class="dia" data-vista="reloj" aria-label={`Precio por hora ${when}`}>
+    <div class="vistas" role="group" aria-label="Forma de ver el día">
+      <button type="button" data-vista-btn="reloj" aria-pressed="true">Reloj</button>
+      <button type="button" data-vista-btn="barras" aria-pressed="false">Barras</button>
+    </div>
+
+    <div class="reloj">
+      {horas.map((h) => (
+        <button
+          type="button"
+          class:list={['rayo', `l${h.lvl}`, { ahora: h.i === nowIdx }]}
+          style={`--v:${h.v.toFixed(4)};--deg:${((h.i * 360) / n).toFixed(2)}deg`}
+          data-i={h.i}
+          data-rango={h.rango}
+          data-precio={h.precio}
+          data-nota={h.nota}
+          aria-label={h.etiqueta}
+          aria-pressed={h.i === selIdx ? 'true' : 'false'}
+        ></button>
+      ))}
+      <div class="centro" aria-live="polite">
+        <span class="c-rango" data-out="rango">{sel.rango}</span>
+        <span class="c-precio" data-out="precio">{sel.precio}</span>
+        <span class="c-unidad">€/kWh</span>
+        <span class="c-nota" data-out="nota">{sel.nota}</span>
+      </div>
+      <span class="num n00" aria-hidden="true">00</span>
+      <span class="num n06" aria-hidden="true">06</span>
+      <span class="num n12" aria-hidden="true">12</span>
+      <span class="num n18" aria-hidden="true">18</span>
+    </div>
+
+    <div class="barras">
+      <p class="c-rango" data-out="rango">{sel.rango}</p>
+      <p class="b-precio"><span class="c-precio" data-out="precio">{sel.precio}</span> €/kWh</p>
+      <p class="c-nota" data-out="nota">{sel.nota}</p>
+      <div class="bars" style={`--n:${n}`}>
+        {horas.map((h) => (
+          <button
+            type="button"
+            class:list={['bar', { ahora: h.i === nowIdx }]}
+            data-i={h.i}
+            data-rango={h.rango}
+            data-precio={h.precio}
+            data-nota={h.nota}
+            aria-label={h.etiqueta}
+            aria-pressed={h.i === selIdx ? 'true' : 'false'}
+          >
+            <span class={`fill l${h.lvl}`} style={`height:${Math.max(4, h.v * 100).toFixed(1)}%`}></span>
+          </button>
+        ))}
+      </div>
+      <div class="ticks" aria-hidden="true" style={`--n:${n}`}>
+        {horas.map((h) => <span>{h.hour % 3 === 0 ? String(h.hour).padStart(2, '0') : ''}</span>)}
+      </div>
+    </div>
+
+    <figcaption>
+      <span class="leyenda">
+        Más barato
+        <span class="muestras" aria-hidden="true"><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i></span>
+        más caro
+      </span>
+      <span>Toca una hora para ver su precio.</span>
+      {nowIdx >= 0 && <span>El punto marca la hora actual.</span>}
+    </figcaption>
+  </figure>
 </section>
 
 <slot name="intro" />
 
-<figure class="strip" aria-label={`Precio por hora ${when}`}>
-  <div class="bars" aria-hidden="true">
-    {day.hours.map((h) => (
-      <div class={`bar${h.hour === currentHour ? ' now' : ''}`} title={`${fmtHour(h.hour)} ${fmtPrice(h.price)} €/kWh`}>
-        <span class={`fill l${level(day, h.price)}`} style={`height:${Math.max(4, (h.price / top) * 100)}%`}></span>
-        <span class="tick">{String(h.hour).padStart(2, '0')}</span>
-      </div>
-    ))}
+<div class="cols">
+  <div>
+    <section class="tips">
+      <h2>Cuándo poner los electrodomésticos</h2>
+      <dl>
+        <div>
+          <dt>Lavadora (unas 2 horas)</dt>
+          <dd>de {fmtHour(lavadora.start)} a {fmtHour(lavadora.end)}, media de {fmtPrice(lavadora.avg)} €/kWh</dd>
+        </div>
+        <div>
+          <dt>Lavavajillas o secadora (unas 3 horas)</dt>
+          <dd>de {fmtHour(lavavajillas.start)} a {fmtHour(lavavajillas.end)}, media de {fmtPrice(lavavajillas.avg)} €/kWh</dd>
+        </div>
+      </dl>
+      <p class="more"><a href="/consumo">Cuánto cuesta hoy usar cada electrodoméstico</a></p>
+    </section>
+
+    <section class="cheap">
+      <h2>Las horas más baratas de la luz {when}</h2>
+      <ol>
+        {baratas.map((h) => (
+          <li><strong>{rango(h.hour)}</strong> {fmtPrice(h.price)} €/kWh</li>
+        ))}
+      </ol>
+    </section>
+
+    <slot name="tarifas" />
   </div>
-  <figcaption>
-    Altura y color según el precio de cada hora, de más barato (verde agua) a más caro (morado).
-    {currentHour !== undefined && <span class="nowlabel"> El contorno amarillo marca la hora actual.</span>}
-  </figcaption>
-</figure>
 
-<section class="tips">
-  <h2>Cuándo poner los electrodomésticos</h2>
-  <dl>
-    <div>
-      <dt>Lavadora (unas 2 horas)</dt>
-      <dd>de {fmtHour(lavadora.start)} a {fmtHour(lavadora.end)}, media de {fmtPrice(lavadora.avg)} €/kWh</dd>
-    </div>
-    <div>
-      <dt>Lavavajillas o secadora (unas 3 horas)</dt>
-      <dd>de {fmtHour(lavavajillas.start)} a {fmtHour(lavavajillas.end)}, media de {fmtPrice(lavavajillas.avg)} €/kWh</dd>
-    </div>
-  </dl>
-  <p class="more"><a href="/consumo">Cuánto cuesta hoy usar cada electrodoméstico</a></p>
-</section>
-
-<section class="cheap">
-  <h2>Las horas más baratas de la luz {when}</h2>
-  <ol>
-    {baratas.map((h) => (
-      <li><strong>{fmtHour(h.hour)} a {fmtHour(h.hour + 1)}</strong> {fmtPrice(h.price)} €/kWh</li>
-    ))}
-  </ol>
-</section>
-
-<section>
-  <h2>Precio hora a hora</h2>
-  <table class="hours">
-    <caption>Precio PVPC {when} por hora, en €/kWh sin impuestos</caption>
-    <thead>
-      <tr><th scope="col">Hora</th><th scope="col">€/kWh</th><th scope="col"><span class="sr">Comparado con el día</span></th></tr>
-    </thead>
-    <tbody>
-      {day.hours.map((h) => (
-        <tr class={h.hour === currentHour ? 'now' : undefined}>
-          <th scope="row">{fmtHour(h.hour)} a {fmtHour(h.hour + 1)}</th>
-          <td>{fmtPrice(h.price)}</td>
-          <td class="rel"><span class={`fill l${level(day, h.price)}`} style={`width:${(h.price / top) * 100}%`}></span></td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</section>
+  <section class="tabla">
+    <h2>Precio hora a hora</h2>
+    <table class="hours">
+      <caption>Precio PVPC {when} por hora, en €/kWh sin impuestos</caption>
+      <thead>
+        <tr><th scope="col">Hora</th><th scope="col">€/kWh</th><th scope="col"><span class="sr">Comparado con el día</span></th></tr>
+      </thead>
+      <tbody>
+        {horas.map((h) => (
+          <tr class={h.i === nowIdx ? 'now' : undefined}>
+            <th scope="row">{h.rango}</th>
+            <td>{h.precio}</td>
+            <td class="rel"><span class="relbox"><span class={`fill l${h.lvl}`} style={`--v:${h.v.toFixed(4)}`}></span>{h.marca && <span class="marca">{h.marca}</span>}</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+</div>
 
 <section class="note">
   <h2>Qué precio es este</h2>
@@ -101,116 +223,347 @@ const verb = when === 'hoy' ? 'es' : 'será';
   <p class="source">Fuente: Red Eléctrica de España, API REData.</p>
 </section>
 
+<script is:inline>
+  // Vista del día (reloj o barras) y hora seleccionada. Sin JavaScript se ve el reloj con la hora actual y la tabla.
+  (function () {
+    var fig = document.querySelector('figure.dia');
+    if (!fig) return;
+    var KEY = 'vista-dia';
+    function vista(v) {
+      fig.setAttribute('data-vista', v);
+      fig.querySelectorAll('[data-vista-btn]').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b.getAttribute('data-vista-btn') === v));
+      });
+    }
+    try {
+      var guardada = localStorage.getItem(KEY);
+      if (guardada === 'barras' || guardada === 'reloj') vista(guardada);
+    } catch (e) {}
+    fig.addEventListener('click', function (ev) {
+      var t = ev.target.closest('button');
+      if (!t) return;
+      var v = t.getAttribute('data-vista-btn');
+      if (v) {
+        vista(v);
+        try {
+          localStorage.setItem(KEY, v);
+        } catch (e) {}
+        return;
+      }
+      var i = t.getAttribute('data-i');
+      if (i === null) return;
+      fig.querySelectorAll('[data-i]').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b.getAttribute('data-i') === i));
+      });
+      ['rango', 'precio', 'nota'].forEach(function (k) {
+        fig.querySelectorAll('[data-out="' + k + '"]').forEach(function (o) {
+          o.textContent = t.getAttribute('data-' + k);
+        });
+      });
+    });
+  })();
+</script>
+
 <style>
   .hero {
-    padding-top: clamp(1.5rem, 5vw, 3.5rem);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+    padding-top: 0.5rem;
   }
   h1 {
-    font-size: 1.15rem;
+    font-family: var(--font-sans);
+    font-size: 1.05rem;
     font-weight: 600;
     letter-spacing: 0;
+    line-height: 1.35;
     color: var(--slate);
   }
   .date {
     color: var(--ink);
   }
   .answer {
-    font-size: clamp(2.4rem, 7.2vw, 5.4rem);
-    font-weight: 800;
-    line-height: 0.98;
-    letter-spacing: -0.035em;
-    margin: 0.75rem 0 1.25rem;
-    max-width: 15ch;
+    font-family: var(--font-display);
+    font-size: clamp(2.35rem, 5.4vw, 4.2rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin: 0.75rem 0 0;
+    max-width: 13ch;
+  }
+  .support {
+    font-size: clamp(1.1rem, 2vw, 1.3rem);
+    font-weight: 600;
+    line-height: 1.35;
+    margin: 1rem 0 0;
+    max-width: 34ch;
   }
   .facts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1.5rem;
-    margin: 0;
-    max-width: none;
+    margin: 0.75rem 0 0;
+    max-width: 56ch;
     color: var(--slate);
-  }
-  .facts strong {
-    color: var(--ink);
+    font-size: 0.9rem;
   }
 
-  .strip {
-    margin: 2.5rem 0 0;
+  /* Reloj de 24 horas y barras: misma caja, mismos datos. */
+  .dia {
+    --d: min(330px, calc(100vw - 2.5rem));
+    --r0: calc(var(--d) * 0.27);
+    --rl: calc(var(--d) * 0.16);
+    --w: calc(var(--d) * 0.052);
+    margin: 0 auto;
+    width: var(--d);
   }
-  .bars {
-    display: grid;
-    grid-template-columns: repeat(24, 1fr);
-    gap: 3px;
-    height: clamp(9rem, 26vw, 15rem);
-    align-items: end;
-    border-bottom: 2px solid var(--ink);
+  .vistas {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.9rem;
+  }
+  .vistas button {
+    min-height: var(--touch);
+    padding: 0 1.3rem;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .vistas button:first-child {
+    border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+  }
+  .vistas button:last-child {
+    border-left: 0;
+    border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  }
+  .vistas button[aria-pressed='true'] {
+    background: var(--action);
+    color: var(--action-ink);
+  }
+  .reloj,
+  .barras {
+    width: var(--d);
+    height: var(--d);
+  }
+  .dia[data-vista='barras'] .reloj,
+  .dia[data-vista='reloj'] .barras {
+    display: none;
+  }
+  .reloj {
+    position: relative;
+  }
+  .rayo {
+    position: absolute;
+    left: 50%;
+    bottom: 50%;
+    width: var(--w);
+    margin-left: calc(var(--w) / -2);
+    height: calc(var(--r0) + 12px + var(--v) * var(--rl));
+    padding: 0;
+    border: 0;
+    border-top: 4px solid transparent;
+    box-sizing: border-box;
+    border-radius: var(--radius-bar) var(--radius-bar) 0 0;
+    transform-origin: 50% 100%;
+    transform: rotate(var(--deg));
+    background: linear-gradient(to top, transparent 0, transparent var(--r0), var(--c) var(--r0));
+    cursor: pointer;
+  }
+  .rayo[aria-pressed='true'] {
+    border-top-color: var(--ink);
+  }
+  .rayo:focus-visible {
+    outline-offset: 0;
+    z-index: 1;
+  }
+  .rayo.ahora::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -15px;
+    width: 7px;
+    height: 7px;
+    margin-left: -3.5px;
+    border-radius: 50%;
+    background: var(--ink);
   }
   .bar {
     position: relative;
+  }
+  .bar.ahora::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -11px;
+    width: 7px;
+    height: 7px;
+    margin-left: -3.5px;
+    border-radius: 50%;
+    background: var(--ink);
+  }
+  .l0 { --c: var(--scale-0); }
+  .l1 { --c: var(--scale-1); }
+  .l2 { --c: var(--scale-2); }
+  .l3 { --c: var(--scale-3); }
+  .l4 { --c: var(--scale-4); }
+  .centro {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: calc(var(--r0) * 1.87);
+    height: calc(var(--r0) * 1.87);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .c-rango {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--slate);
+  }
+  .c-precio {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: calc(var(--d) * 0.113);
+    line-height: 1.05;
+  }
+  .c-unidad {
+    font-size: 0.8rem;
+  }
+  .c-nota {
+    margin: 0;
+    min-height: 1.3em;
+    font-size: 0.78rem;
+    color: var(--accent);
+  }
+  .num {
+    position: absolute;
+    font-size: 0.72rem;
+    color: var(--slate);
+    z-index: 1;
+    pointer-events: none;
+  }
+  .n00 { left: 50%; top: calc(50% - var(--r0) + 4px); transform: translateX(-50%); }
+  .n12 { left: 50%; bottom: calc(50% - var(--r0) + 4px); transform: translateX(-50%); }
+  .n06 { top: 50%; right: calc(50% - var(--r0) + 6px); transform: translateY(-50%); }
+  .n18 { top: 50%; left: calc(50% - var(--r0) + 6px); transform: translateY(-50%); }
+
+  .barras {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .b-precio {
+    margin: 0;
+    font-weight: 600;
+  }
+  .bars {
+    display: grid;
+    grid-template-columns: repeat(var(--n, 24), minmax(0, 1fr));
+    gap: 2px;
+    flex: 1;
+    min-height: 0;
+    align-items: end;
+    border-bottom: 2px solid var(--ink);
+    margin-top: 0.8rem;
+  }
+  .bar {
     height: 100%;
     display: flex;
     align-items: flex-end;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
   }
   .bar .fill {
     display: block;
     width: 100%;
-    border-radius: 2px 2px 0 0;
+    background: var(--c);
+    border-radius: var(--radius-bar) var(--radius-bar) 0 0;
   }
-  .bar.now .fill {
-    outline: 3px solid var(--bulb);
+  .bar[aria-pressed='true'] .fill {
+    outline: 3px solid var(--ink);
     outline-offset: 1px;
   }
-  .tick {
-    position: absolute;
-    bottom: -1.6rem;
-    width: 100%;
-    text-align: center;
+  .ticks {
+    padding-top: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(var(--n, 24), minmax(0, 1fr));
+    gap: 2px;
+    margin-top: 0.35rem;
     font-size: 0.72rem;
     color: var(--slate);
-  }
-  .bar:not(:nth-child(3n + 1)) .tick {
-    visibility: hidden;
+    text-align: center;
   }
   figcaption {
-    margin-top: 2.2rem;
-    font-size: 0.85rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem 1rem;
+    margin-top: 0.75rem;
+    font-size: 0.82rem;
     color: var(--slate);
+    text-align: center;
+  }
+  .leyenda {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .muestras {
+    display: inline-flex;
+    gap: 2px;
+  }
+  .muestras i {
+    width: 14px;
+    height: 10px;
+    background: var(--c);
   }
 
-  .l0 { background: var(--l0); }
-  .l1 { background: var(--l1); }
-  .l2 { background: var(--l2); }
-  .l3 { background: var(--l3); }
-  .l4 { background: var(--l4); }
-
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  h2 {
+    font-size: clamp(1.4rem, 2.6vw, 1.65rem);
+    margin-top: 2.25rem;
+    margin-bottom: 0.9rem;
+  }
   .tips dl {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-    gap: 1rem 2.5rem;
+    gap: 1rem;
     margin: 0;
   }
   .tips dt {
     color: var(--slate);
   }
-  .tips .more {
-    margin-top: 1rem;
-  }
   .tips dd {
     margin: 0.2rem 0 0;
-    font-size: 1.35rem;
+    font-size: 1.25rem;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    line-height: 1.3;
   }
-
+  .tips .more {
+    margin-top: 0.5rem;
+  }
+  .tips .more a {
+    display: inline-block;
+    padding: 0.6rem 0;
+  }
   .cheap ol {
     margin: 0;
     padding-left: 1.4rem;
-    columns: 2 14rem;
-    column-gap: 2.5rem;
   }
   .cheap li {
     padding: 0.2rem 0;
-    break-inside: avoid;
   }
   .cheap li strong {
     margin-right: 0.4rem;
@@ -219,7 +572,6 @@ const verb = when === 'hoy' ? 'es' : 'será';
   .hours {
     border-collapse: collapse;
     width: 100%;
-    max-width: 40rem;
   }
   .hours caption {
     text-align: left;
@@ -229,30 +581,47 @@ const verb = when === 'hoy' ? 'es' : 'será';
   }
   .hours th,
   .hours td {
-    padding: 0.38rem 0.75rem 0.38rem 0;
+    padding: 0.4rem 0.5rem 0.4rem 0.4rem;
     border-bottom: 1px solid var(--rule);
     text-align: left;
     font-weight: 400;
+    white-space: nowrap;
   }
   .hours thead th {
     font-size: 0.85rem;
     color: var(--slate);
+    font-weight: 600;
   }
   .hours td:nth-child(2) {
-    font-weight: 600;
-    white-space: nowrap;
+    font-weight: 700;
   }
   .hours .rel {
-    width: 45%;
+    width: 46%;
+    padding-right: 0.45rem;
+  }
+  .relbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
   .hours .rel .fill {
     display: block;
+    flex: none;
+    width: calc(var(--v) * 46%);
     height: 0.65rem;
-    border-radius: 1px;
+    border-radius: 6px;
+    background: var(--c);
+  }
+  .marca {
+    font-size: 0.78rem;
+    color: var(--slate);
   }
   .hours tr.now th,
   .hours tr.now td {
-    background: #fff6d1;
+    background: var(--now-bg);
+  }
+  .hours tr.now th {
+    font-weight: 700;
   }
   .sr {
     position: absolute;
@@ -264,5 +633,33 @@ const verb = when === 'hoy' ? 'es' : 'será';
   .note .source {
     color: var(--slate);
     font-size: 0.9rem;
+  }
+
+  @media (min-width: 768px) {
+    .hero {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 3.5rem;
+      align-items: center;
+      padding-top: 2rem;
+    }
+    .dia {
+      --d: clamp(330px, 40vw, 460px);
+      margin: 0;
+    }
+    .bars,
+    .ticks {
+      gap: 4px;
+    }
+    .cols {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+      gap: 4.25rem;
+      margin-top: 1.5rem;
+    }
+    h2 {
+      margin-top: 2.75rem;
+    }
+    .hours .rel .fill {
+      width: calc(var(--v) * 68%);
+    }
   }
 </style>

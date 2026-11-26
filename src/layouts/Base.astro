@@ -1,5 +1,6 @@
 ---
-import '@fontsource-variable/schibsted-grotesk';
+import '@fontsource/bricolage-grotesque/latin-700.css';
+import '@fontsource-variable/figtree';
 import '../styles/global.css';
 
 interface Props {
@@ -13,7 +14,8 @@ const path = Astro.url.pathname;
 const nav = [
   { href: '/', label: 'Precio hoy' },
   { href: '/precio-luz-manana', label: 'Precio mañana' },
-  { href: '/comparador-tarifas-luz', label: 'Comparador' },
+  { href: '/comparador-tarifas-luz', label: 'Comparar tarifas' },
+  { href: '#guias', label: 'Guías' },
 ];
 ---
 <!doctype html>
@@ -35,12 +37,21 @@ const nav = [
   <body>
     <a class="skip" href="#main">Saltar al contenido</a>
     <header class="site-header">
-      <a class="brand" href="/">la factura de la luz</a>
+      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>La Factura de la Luz</a>
       <nav aria-label="Principal">
-        {nav.map((item) => (
-          <a href={item.href} aria-current={path === item.href ? 'page' : undefined}>{item.label}</a>
-        ))}
+        <details class="site-nav" open>
+          <summary>Menú</summary>
+          <ul>
+            {nav.map((item) => (
+              <li><a href={item.href} aria-current={path === item.href ? 'page' : undefined}>{item.label}</a></li>
+            ))}
+          </ul>
+        </details>
       </nav>
+      <script is:inline>
+        // En móvil el menú empieza cerrado; sin JavaScript queda abierto y usable.
+        if (window.matchMedia('(max-width: 767px)').matches) document.querySelector('.site-nav').removeAttribute('open');
+      </script>
     </header>
     <main id="main">
       <slot />
@@ -50,7 +61,7 @@ const nav = [
         Esta web puede recibir una comisión si contratas una tarifa desde un enlace marcado como patrocinado. No cambia el
         precio que pagas ni el orden de los resultados. <a href="/como-ganamos-dinero">Cómo ganamos dinero</a>.
       </p>
-      <nav class="guias" aria-label="Guías">
+      <nav class="guias" id="guias" aria-label="Guías">
         <a href="/compania-luz-mas-barata">Compañía de luz más barata</a>
         <a href="/consumo">Consumo de electrodomésticos</a>
         <a href="/dar-de-alta-la-luz">Dar de alta la luz</a>
