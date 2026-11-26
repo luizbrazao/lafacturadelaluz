@@ -38,6 +38,12 @@ Tipografía: Bricolage Grotesque 700 en títulos y cifras, Figtree en el resto, 
 
 Componentes: reloj, barras, alternancia y tabla viven en `src/components/DayView.astro`; `.btn`, `.badge` y `.table-scroll` en `global.css`.
 
+## Añadido después
+
+- Índice lateral «En esta página» en las páginas de texto con tres o más apartados, desde 1100 px de ancho. Lo crea un script de `Base.astro`; sin JavaScript la página queda como antes.
+- Tabla de batería virtual con la primera columna fija y aviso de desplazamiento en móvil.
+- Imagen para compartir en `public/og.png` (1200 × 630) y sus metaetiquetas. Es fija, con los precios del 26 de noviembre de 2026 como ejemplo: no cambia cada día.
+
 ## Cómo se probó
 
 `astro dev` con los datos de prueba, en 360, 390, 768, 1024, 1440 y 1920 px, sobre nueve páginas: sin desbordamiento horizontal ni errores de JavaScript. Se comprobó el toque en una hora, la alternancia, que la elección se recuerda al recargar, el foco con teclado, el menú móvil y que los enlaces `/ir/` siguen redirigiendo.
@@ -47,8 +53,5 @@ Capturas en `capturas/`.
 ## Pendiente
 
 - Probar la lectura del reloj de 24 horas con 4 o 5 personas.
-- Índice lateral en guías, ranking y fichas (la columna derecha sigue vacía en escritorio).
-- Tabla ancha de batería virtual con primera columna fija.
-- Imagen para compartir (`og:image`) con el reloj.
 - Medir Core Web Vitals en producción tras el despliegue.
 - Las capturas `desk_*.png` y `mob_*.png` de la raíz son del diseño anterior; se pueden mover aquí o borrar.
